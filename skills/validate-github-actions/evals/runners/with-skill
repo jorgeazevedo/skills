@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+exec env EVAL_WITH_SKILL=1 "$(dirname "$0")/copilot"

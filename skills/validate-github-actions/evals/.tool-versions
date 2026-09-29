@@ -1,0 +1,4 @@
+node 24
+uv 0.12.10
+pipx:smevals 0.2.0
+npm:@github/copilot 1.0.88
