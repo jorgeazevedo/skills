@@ -1,7 +1,0 @@
-name: validate-github-actions
-description: >-
-  Does the validate-github-actions skill change how the agent validates a
-  GitHub Actions workflow? Runs the same prompt against a fixed commit of
-  guardian/cdk-playground with the skill installed (with-skill) and without it
-  (without-skill), using the GitHub Copilot CLI. No grader yet: runs only
-  capture transcripts for manual analysis.

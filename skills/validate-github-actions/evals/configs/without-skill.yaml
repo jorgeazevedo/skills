@@ -1,3 +1,0 @@
-name: without-skill
-runner: ../runners/without-skill
-model: claude-sonnet-5
