@@ -1,7 +1,0 @@
-#!/usr/bin/env bash
-# smevals Checker: pass if a bash call ran both actionlint and zizmor on ci.yaml
-# Bash calls appear in the transcript as lines starting with "$ "
-for tool in actionlint zizmor; do
-  grep -qE "^\\$ .*\\b$tool\\b[^;&|]*\\bci\\.ya?ml" "$SMEVALS_RUN_DIR/transcript.md" ||
-    { echo "no bash call ran $tool on ci.yaml"; exit 1; }
-done

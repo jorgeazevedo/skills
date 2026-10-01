@@ -1,13 +1,12 @@
 # Context
 
-Agent skills for GitHub Copilot (`skills/<name>/SKILL.md`). `validate-github-actions` has evals in `evals/validate-github-actions/` that use smevals and the Copilot CLI, with tools pinned through mise `.tool-versions`.
+A [waza](https://github.com/microsoft/waza) project of agent skills for GitHub Copilot: skills in `skills/<name>/SKILL.md`, evals in `evals/<name>/`. `validate-github-actions` has an eval that checks the agent runs `actionlint` and `zizmor`. Tools are pinned through mise `.tool-versions`.
 
 # Bash commands
-- `make eval`: run the evals without the skill, then with it, then grade
-- `make with-skill` / `make without-skill`: run one config
-- `make grade`: grade any ungraded runs (pass = a bash call ran actionlint and zizmor on ci.yaml)
-- `make serve`: serve the HTML report of the runs at http://127.0.0.1:7001
+- `make eval`: run the eval with the skill, then without it (`waza run --baseline`), results in `results/`
+- `make serve`: serve the waza dashboard of the results
+- `make viz`: serve a with-skill vs without-skill report of the `--baseline` results on http://localhost:3100
 
 # Workflow
 - Run `gh auth login` before running evals.
-- After you edit a `SKILL.md`, run `make eval` and compare the grades and transcripts in `evals/validate-github-actions/runs/`.
+- After you edit a `SKILL.md`, run `make eval` and check the skill still improves on the baseline.

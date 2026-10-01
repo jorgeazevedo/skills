@@ -1,15 +1,18 @@
-EVALS := evals/validate-github-actions
+EVAL := evals/validate-github-actions
+# Empty Copilot home so personal skills and instructions don't leak into runs
+COPILOT_HOME := $(CURDIR)/.copilot-home
 
-.PHONY: eval with-skill without-skill grade serve
+.PHONY: eval serve viz
 
-eval: without-skill with-skill grade
-
-with-skill without-skill:
-	cd $(EVALS) && mise exec -- smevals run . -c $@
-
-# Separate from run -g so a failing baseline grade doesn't stop with-skill from running
-grade:
-	cd $(EVALS) && mise exec -- smevals grade .
+# Runs each task with the skill, then again without it (--baseline)
+eval:
+	rm -rf $(COPILOT_HOME) && mkdir -p $(COPILOT_HOME)
+	cd $(EVAL) && COPILOT_HOME=$(COPILOT_HOME) COPILOT_GITHUB_TOKEN="$$(gh auth token)" \
+		mise exec -- waza run eval.yaml --baseline -v --output-dir $(CURDIR)/results
 
 serve:
-	cd $(EVALS) && mise exec -- smevals serve .
+	mise exec -- waza serve --results-dir results
+
+# waza's dashboard doesn't show the --baseline comparison, so this does
+viz:
+	mise exec -- node viz/serve.mjs

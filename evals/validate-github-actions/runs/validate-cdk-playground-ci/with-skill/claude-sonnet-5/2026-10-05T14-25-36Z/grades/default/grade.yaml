@@ -1,8 +1,0 @@
-grader: default
-graded: '2026-10-05T14:27:17.721499+00:00'
-outcome: pass
-score: null
-tags: []
-checks:
-- checker: ran-validators
-  ok: true

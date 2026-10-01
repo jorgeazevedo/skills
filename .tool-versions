@@ -1,4 +1,4 @@
 github:guardian/devenv 20260721-123412
 apm 0.32.0
-uv 0.12.10
-pipx:smevals 0.2.0
+github:microsoft/waza 0.38.7
+nodejs 24.21.0
