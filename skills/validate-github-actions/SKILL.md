@@ -1,6 +1,7 @@
 ---
 name: validate-github-actions
 description: 'Validate GitHub Actions workflow YAML files using actionlint and zizmor. Use when creating or modifying GitHub Actions workflows.'
+compatibility: Requires actionlint and zizmor
 ---
 
 # Validate GitHub Actions Workflows
