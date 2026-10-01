@@ -1,0 +1,16 @@
+name: jorgeazevedo-skills
+version: 0.1.0
+description: Agent skills by Jorge Azevedo
+author: Jorge Azevedo
+license: Apache-2.0
+marketplace:
+  owner:
+    name: jorgeazevedo
+    url: https://github.com/jorgeazevedo
+  outputs:
+    claude: {}
+  packages:
+  - name: validate-github-actions
+    source: ./skills/validate-github-actions
+    description: Validate GitHub Actions workflow YAML files using actionlint and zizmor
+    version: 0.1.0

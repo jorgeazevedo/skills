@@ -1,0 +1,6 @@
+results/
+.repos/
+.copilot-home/
+.waza-cache/
+coverage.txt
+*.exe

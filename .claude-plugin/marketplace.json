@@ -1,0 +1,15 @@
+{
+  "name": "jorgeazevedo-skills",
+  "owner": {
+    "name": "jorgeazevedo",
+    "url": "https://github.com/jorgeazevedo"
+  },
+  "plugins": [
+    {
+      "name": "validate-github-actions",
+      "description": "Validate GitHub Actions workflow YAML files using actionlint and zizmor",
+      "version": "0.1.0",
+      "source": "./skills/validate-github-actions"
+    }
+  ]
+}
