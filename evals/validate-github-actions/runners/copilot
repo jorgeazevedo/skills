@@ -14,9 +14,10 @@ mkdir -p ~/.cache/skill-evals
 work="$(mktemp -d ~/.cache/skill-evals/XXXXXX)"
 trap 'rm -rf "$work"' EXIT
 
-git clone --quiet "$SMEVALS_TASK_REPO" "$work/repo" >&2
-git -C "$work/repo" checkout --quiet -B main "$SMEVALS_TASK_COMMIT"
-git -C "$work/repo" remote remove origin
+# Fetch only the pinned commit so no later history or tags are reachable
+git init --quiet "$work/repo"
+git -C "$work/repo" fetch --quiet --no-tags "$SMEVALS_TASK_REPO" "$SMEVALS_TASK_COMMIT"
+git -C "$work/repo" checkout --quiet -B main FETCH_HEAD
 
 # Fresh COPILOT_HOME: no personal skills or instructions leak in
 mkdir -p "$work/home"
