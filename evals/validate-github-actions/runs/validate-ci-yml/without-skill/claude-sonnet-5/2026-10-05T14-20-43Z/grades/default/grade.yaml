@@ -1,0 +1,10 @@
+grader: default
+graded: '2026-10-05T14:21:43.491479+00:00'
+outcome: fail
+score: null
+tags: []
+checks:
+- checker: ran-validators
+  ok: false
+  details:
+    output: no bash call ran zizmor on ci.yaml

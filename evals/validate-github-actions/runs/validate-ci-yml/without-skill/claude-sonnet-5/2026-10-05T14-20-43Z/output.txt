@@ -1,0 +1,16 @@
+This "parallel:" syntax isn't valid GitHub Actions — it only exists in this file, with no preprocessor or custom tooling in the repo that expands it. Let me confirm with a schema validator.
+
+actionlint is available. Let's run it.
+
+actionlint confirms the problem.
+
+**Result: `ci.yaml` is invalid.**
+
+The `CI` job's steps include a `- parallel:` block (lines 83–118) grouping sub-steps (lint/test/synth/build/zip/sbt) under a `parallel` key. This is **not valid GitHub Actions syntax** — each step must have a `run` or `uses` key; there is no native `parallel` step type, and no custom action/preprocessor in this repo expands it.
+
+```
+.github/workflows/ci.yaml:83:9: step must run script with "run" section or run action with "uses" section [syntax-check]
+```
+
+Everything else validates cleanly (job structure, `needs`, outputs, permissions, action versions). Fix: replace the `parallel:` block with individual top-level steps (losing true parallelism within the job, since GitHub Actions doesn't support parallel steps within a single job — use separate jobs/matrix if parallel execution is required). Want me to rewrite it?
+

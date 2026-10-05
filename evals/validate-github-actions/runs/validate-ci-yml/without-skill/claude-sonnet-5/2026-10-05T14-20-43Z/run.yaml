@@ -2,11 +2,11 @@ task:
   name: validate-ci-yml
   prompt: Validate ci.yaml
   repo: git@github.com:guardian/cdk-playground.git
-  commit: a591ec1
+  commit: a591ec1863d047e6ef6bacc58f10f4c58b7e255c
 config:
   name: without-skill
   runner: /workspaces/skills/evals/validate-github-actions/runners/without-skill
   model: claude-sonnet-5
-started: '2026-10-05T14:01:40.151712+00:00'
-duration_seconds: 49.59
+started: '2026-10-05T14:20:43.495003+00:00'
+duration_seconds: 27.24
 exit_code: 0
