@@ -1,13 +1,13 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/microsoft/waza/main/schemas/task.schema.json
-id: validate-ci-yml
-name: Validate ci.yaml
+id: validate-cdk-playground-ci
+name: Validate cdk playground ci
 description: Ask the agent to validate the ci.yaml workflow of guardian/cdk-playground.
 inputs:
   prompt: Validate ci.yaml
   repos:
     - type: worktree
-      # Cloned from git@github.com:guardian/cdk-playground.git by hooks/clone-repo.sh
+      # Fetched from git@github.com:guardian/cdk-playground.git by hooks/clone-repo.sh
       source: .repos/cdk-playground
-      commit: a591ec1
+      commit: a591ec1863d047e6ef6bacc58f10f4c58b7e255c
       dest: cdk-playground
   workdir: cdk-playground

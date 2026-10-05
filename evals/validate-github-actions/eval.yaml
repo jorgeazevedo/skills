@@ -1,9 +1,11 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/microsoft/waza/main/schemas/eval.schema.json
 name: validate-github-actions
 description: >-
-  Does the validate-github-actions skill make the agent run actionlint and
-  zizmor when asked to validate a workflow? Run with --baseline to also run
-  every task without the skill and compare.
+  Does the validate-github-actions skill change how the agent validates a
+  GitHub Actions workflow? Runs the same prompt against a fixed commit of
+  guardian/cdk-playground with the skill installed and, with --baseline or
+  --no-skills, without it. A run passes if a bash call ran both actionlint and
+  zizmor on ci.yaml.
 skill: validate-github-actions
 schemaVersion: "1.2"
 version: "1.0"
@@ -15,6 +17,8 @@ config:
   parallel: false
   executor: copilot-sdk
   model: claude-sonnet-5
+  # Like an installed skill: the agent has to choose to load it, rather than getting it in the system prompt
+  inject_skill_body: false
   skill_directories:
     - ../../skills
 
@@ -25,17 +29,13 @@ hooks:
 
 graders:
   - type: tool_constraint
-    name: ran_actionlint
+    name: ran_validators
     config:
       expect_tools:
         - tool: ^bash$
-          command_pattern: \bactionlint\b
-  - type: tool_constraint
-    name: ran_zizmor
-    config:
-      expect_tools:
+          command_pattern: '\bactionlint\b[^;&|]*\bci\.ya?ml'
         - tool: ^bash$
-          command_pattern: \bzizmor\b
+          command_pattern: '\bzizmor\b[^;&|]*\bci\.ya?ml'
 
 tasks:
   - "tasks/*.yaml"

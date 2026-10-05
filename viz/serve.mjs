@@ -2,7 +2,7 @@ import { createServer } from "node:http";
 import { readFile, readdir } from "node:fs/promises";
 import { join, resolve, sep } from "node:path";
 
-const resultsDir = resolve(import.meta.dirname, "..", "results");
+const resultsDir = resolve(process.env.RESULTS_DIR);
 const page = join(import.meta.dirname, "index.html");
 const port = Number(process.env.PORT ?? 3100);
 
