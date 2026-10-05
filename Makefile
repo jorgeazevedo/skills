@@ -1,4 +1,4 @@
-EVALS := skills/validate-github-actions/evals
+EVALS := evals/validate-github-actions
 
 .PHONY: eval with-skill without-skill serve
 

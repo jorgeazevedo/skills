@@ -1,6 +1,6 @@
 # Context
 
-Agent skills for GitHub Copilot (`skills/<name>/SKILL.md`). `validate-github-actions` has evals that use smevals and the Copilot CLI, with tools pinned through mise `.tool-versions`.
+Agent skills for GitHub Copilot (`skills/<name>/SKILL.md`). `validate-github-actions` has evals in `evals/validate-github-actions/` that use smevals and the Copilot CLI, with tools pinned through mise `.tool-versions`.
 
 # Bash commands
 - `make eval`: run the evals without the skill, then with it
@@ -9,4 +9,4 @@ Agent skills for GitHub Copilot (`skills/<name>/SKILL.md`). `validate-github-act
 
 # Workflow
 - Run `gh auth login` before running evals.
-- After you edit a `SKILL.md`, run `make eval` and compare the transcripts in `skills/validate-github-actions/evals/runs/`. There is no grader yet.
+- After you edit a `SKILL.md`, run `make eval` and compare the transcripts in `evals/validate-github-actions/runs/`. There is no grader yet.

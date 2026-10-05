@@ -1,0 +1,19 @@
+It installed globally. Let me use the global module directly.
+
+actionlint is already available.
+
+**Validation result: ci.yaml is invalid.**
+
+YAML syntax is fine, but `actionlint` reports a schema error:
+
+```
+.github/workflows/ci.yaml:83:9: step must run script with "run" section or run action with "uses" section [syntax-check]
+   |
+83 |       - parallel:
+   |         ^~~~~~~~~
+```
+
+**Issue:** GitHub Actions has no native `parallel:` step construct — each step in a job's `steps:` list must define `uses` (action) or `run` (script), plus optional `name`/`with`/`env`/etc. The block under `CI.steps[4]` (lint, test, synth, build, zip, sbt build) is not valid syntax and will fail parsing/fail to run as-is.
+
+**Fix:** achieve parallelism via separate jobs (each depending on `ci-image`/`facts` via `needs`) rather than steps, or keep them sequential steps within the one job if true parallelism isn't required. Want me to restructure the workflow (e.g., split into parallel jobs with a final `CI` job that needs them all) to fix this?
+

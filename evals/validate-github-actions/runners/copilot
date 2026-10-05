@@ -22,7 +22,7 @@ git -C "$work/repo" remote remove origin
 mkdir -p "$work/home"
 if [[ "$EVAL_WITH_SKILL" == 1 ]]; then
   mkdir -p "$work/home/skills/validate-github-actions"
-  cp "$eval_dir/../SKILL.md" "$work/home/skills/validate-github-actions/"
+  cp "$eval_dir/../../skills/validate-github-actions/SKILL.md" "$work/home/skills/validate-github-actions/"
 fi
 
 COPILOT_HOME="$work/home" "$copilot_bin" \
