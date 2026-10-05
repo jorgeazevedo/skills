@@ -1,0 +1,4 @@
+name: validate-ci-yml
+prompt: Validate ci.yaml
+repo: git@github.com:guardian/cdk-playground.git
+commit: a591ec1

@@ -1,0 +1,18 @@
+Actionlint found a syntax error. First let me fix the tool version issue for zizmor, then look at the file.
+
+No zizmor config found — default policy requires pinned SHAs, which is likely just noise for this repo's conventions. Let me focus on the real actionlint syntax error first.
+
+The `parallel:` step is invalid GitHub Actions syntax — steps must have `run` or `uses`. GitHub Actions has no built-in parallel-steps-within-a-job feature, so I'll flatten these into sequential steps (preserving behavior).
+
+actionlint is now clean. Zizmor's remaining findings (unpinned actions, missing `persist-credentials: false`) are pre-existing repo conventions, not caused by my fix — I'll report them rather than alter unrelated action pinning policy.
+
+**Result: actionlint clean ✅.**
+
+Fixed a real syntax bug: the `CI` job had an invalid `- parallel:` step (not valid GitHub Actions syntax — steps must use `run` or `uses`; GHA has no in-job parallel-steps feature). Flattened it into sequential steps, preserving all behavior.
+
+zizmor reports 18 findings (pre-existing, unrelated to the fix — not changed):
+- 8 high: unpinned action refs (e.g. `actions/checkout@v7.0.1`, `guardian/setup-scala@v2`) not pinned to a SHA.
+- 2 low: `actions/checkout` missing `persist-credentials: false`.
+
+These are policy/hardening suggestions, not blocking errors — let me know if you'd like me to pin actions to SHAs or add `persist-credentials: false`.
+

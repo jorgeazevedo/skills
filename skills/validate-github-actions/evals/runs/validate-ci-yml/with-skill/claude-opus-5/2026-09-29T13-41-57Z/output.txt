@@ -1,0 +1,23 @@
+I'll load the validation skill and check the workflow file.
+
+I'll check the project's `.tool-versions` and locate the workflow file.
+
+Found a syntax error at line 83 plus zizmor findings. Let me inspect the file.
+
+`parallel:` isn't valid GitHub Actions syntax. Flattening it into sequential steps.
+
+Now re-running both tools, and checking a sibling workflow as a baseline for the unpinned-action findings.
+
+Repo convention is hash-pinning. Resolving SHAs for the 8 unpinned actions.
+
+Applying hash pins and the `persist-credentials` fixes.
+
+Both tools are clean.
+
+**Changes to `.github/workflows/ci.yaml`:**
+1. **Syntax error (actionlint):** removed the invalid `- parallel:` step — not valid GitHub Actions syntax. Flattened its six nested steps (CDK lint/test/synth, event-forwarder build, lambda zip, SBT build) into normal sequential steps.
+2. **Unpinned actions (zizmor, 8 high):** pinned all actions to commit SHAs with version comments, matching the repo's existing convention.
+3. **artipacked (2 low):** added `persist-credentials: false` to both `actions/checkout` steps.
+
+Also added `actionlint`/`zizmor` to `.tool-versions`. Result: actionlint clean, zizmor "No findings to report".
+
