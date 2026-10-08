@@ -64,6 +64,10 @@
   .notice { margin-top: 16px; border: 1px solid var(--zinc-700); border-left: 3px solid var(--yellow); background: var(--zinc-800); border-radius: 8px; padding: 12px 16px; font-size: 14px; color: var(--zinc-300); }
 
   h2 { display: flex; align-items: center; gap: 16px; font-size: 18px; font-weight: 600; margin: 40px 0 12px; }
+  .collapse { display: inline-flex; align-items: center; gap: 8px; font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+  .collapse:focus-visible { outline: 2px solid var(--blue); outline-offset: 4px; border-radius: 4px; }
+  .collapse svg.icon { color: var(--zinc-400); transition: transform .15s; }
+  .collapse[aria-expanded="false"] svg.icon { transform: rotate(-90deg); }
   .legend { margin-left: auto; display: flex; gap: 16px; font-size: 12px; font-weight: 400; color: var(--zinc-400); }
   .toggle { display: flex; gap: 4px; }
   .toggle button { font: 14px var(--sans); color: var(--zinc-400); background: none; border: 0; border-radius: 4px; padding: 6px 12px; cursor: pointer; transition: color .15s; }
@@ -124,6 +128,23 @@
   pre { margin: 6px 0 0; padding: 8px 10px; background: oklch(0.141 0.005 285.823); border: 1px solid var(--zinc-700); border-radius: 4px; font: 12px/1.5 var(--mono); color: var(--zinc-300); white-space: pre-wrap; word-break: break-word; max-height: 320px; overflow: auto; font-style: normal; }
   pre .del { color: var(--red); }
   pre .ins { color: var(--green); }
+  .files { display: flex; flex-direction: column; gap: 12px; padding: 12px; }
+  .file { border: 1px solid var(--zinc-700); border-radius: 6px; overflow: hidden; }
+  .file-head { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--zinc-900); border-bottom: 1px solid var(--zinc-700); }
+  .file-head .collapse { min-width: 0; text-align: left; }
+  .file-path { font: 12px var(--mono); color: var(--zinc-100); overflow-wrap: anywhere; }
+  .file-stat { margin-left: auto; font: 12px var(--mono); white-space: nowrap; }
+  .file-body { overflow-y: auto; max-height: 640px; background: oklch(0.141 0.005 285.823); color-scheme: dark; }
+  table.diff { font: 12px/1.6 var(--mono); }
+  .diff td { padding: 0 8px; background: none; border: 0; vertical-align: top; color: var(--zinc-300); }
+  .diff td.ln { width: 1%; min-width: 4ch; text-align: right; color: var(--zinc-500); user-select: none; }
+  .diff td.code { white-space: pre-wrap; overflow-wrap: anywhere; padding-left: 12px; }
+  .diff tr.ins td { background: oklch(0.723 0.219 149.579 / 0.12); }
+  .diff tr.ins td.ln { background: oklch(0.723 0.219 149.579 / 0.2); }
+  .diff tr.del td { background: oklch(0.637 0.237 25.331 / 0.12); }
+  .diff tr.del td.ln { background: oklch(0.637 0.237 25.331 / 0.2); }
+  .diff tr.hunk td { background: oklch(0.623 0.214 259.815 / 0.1); color: var(--blue-400); padding-top: 4px; padding-bottom: 4px; }
+  .diff tr.note td.code { color: var(--zinc-500); font-style: italic; }
   .empty { padding: 12px 16px; font-size: 14px; color: var(--zinc-500); }
   footer { margin-top: 48px; font: 12px var(--mono); color: var(--zinc-500); }
 
@@ -141,6 +162,7 @@
   <div id="notice"></div>
   <div id="usage"></div>
   <div id="tasks"></div>
+  <div id="files"></div>
   <footer id="footer"></footer>
 </main>
 <script>
@@ -179,6 +201,7 @@
     book: ["M12 7v14", "M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"],
     wrench: ["M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"],
     lightbulb: ["M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5", "M9 18h6", "M10 22h4"],
+    chevronDown: ["m6 9 6 6 6-6"],
   };
   function icon(name) {
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -213,6 +236,22 @@
     return passed
       ? h("span", { class: "pill green" }, icon("check"), label ?? "pass")
       : h("span", { class: "pill red" }, icon("x"), label ?? "fail");
+  }
+
+  // Kept across re-renders, so switching results doesn't reopen sections
+  const collapsed = new Set();
+
+  function section(title, extras, ...body) {
+    const content = h("div", {}, body);
+    const btn = h("button", { type: "button", class: "collapse", "aria-expanded": String(!collapsed.has(title)) }, icon("chevronDown"), title);
+    content.hidden = collapsed.has(title);
+    btn.addEventListener("click", () => {
+      const open = content.hidden;
+      content.hidden = !open;
+      btn.setAttribute("aria-expanded", String(open));
+      if (open) collapsed.delete(title); else collapsed.add(title);
+    });
+    return [h("h2", {}, btn, extras), content];
   }
 
   function legend() {
@@ -278,13 +317,12 @@
         h("td", { class: "num" }, w == null ? "—" : fmt(w)),
         h("td", { class: "num muted" }, b ? `${signed(Math.round(((w - b) / b) * 100))}%` : "—"));
     });
-    $("#usage").replaceChildren(
-      h("h2", {}, "Usage", legend()),
+    $("#usage").replaceChildren(...section("Usage", legend(),
       h("div", { class: "table-wrap" }, h("table", {},
         h("thead", {}, h("tr", {},
           h("th", {}, "Metric"), h("th", {}), h("th", { class: "num" }, "Without skill"),
           h("th", { class: "num" }, "With skill"), h("th", { class: "num" }, "Change"))),
-        h("tbody", {}, rows))));
+        h("tbody", {}, rows)))));
   }
 
   // tool_constraint graders record their expectations as "<tool regex> (command_pattern: <regex>)"
@@ -440,7 +478,8 @@
   function renderTask(t, b) {
     const withRate = t.skill_impact?.pass_rate_with_skills ?? t.stats?.pass_rate;
     const baseRate = t.skill_impact?.pass_rate_baseline ?? b?.stats?.pass_rate;
-    const names = [...new Set([t, b].flatMap((x) => (x?.runs ?? []).flatMap((r) => Object.keys(r.validations ?? {}))))];
+    const names = [...new Set([t, b].flatMap((x) => (x?.runs ?? []).flatMap((r) => Object.keys(r.validations ?? {}))))]
+      .filter((n) => n !== DIFF_GRADER);
     const patterns = graderPatterns(t, b);
     const describe = (n) => patterns.filter((x) => x.name === n)
       .map((p) => h("span", { class: "pattern" }, `${p.tool.source}${p.cmd ? `  ${p.cmd.source}` : ""}`));
@@ -464,6 +503,80 @@
         trajColumn("skill", "With skill", t, patterns)));
   }
 
+  // Program grader in eval.yaml whose stdout is the agent's changes as a unified diff
+  const DIFF_GRADER = "workspace_diff";
+
+  const runDiff = (r) => r.validations?.[DIFF_GRADER]?.details?.stdout;
+
+  function parseDiff(text) {
+    return text.split(/^(?=diff --git )/m).filter(Boolean).map((chunk) => {
+      const lines = chunk.replace(/\n$/, "").split("\n");
+      const path = lines[0].match(/^diff --git a\/.* b\/(.*)$/)?.[1] ?? lines[0];
+      const status = lines.find((l) => /^(new|deleted) file mode/.test(l))?.split(" ")[0];
+      const rows = [];
+      let o = 0, n = 0, ins = 0, del = 0;
+      for (const l of lines) {
+        const m = l.match(/^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
+        if (m) { o = +m[1]; n = +m[2]; rows.push({ type: "hunk", text: l }); }
+        else if (!rows.length) continue;
+        else if (l.startsWith("+")) { ins++; rows.push({ type: "ins", n: n++, text: l }); }
+        else if (l.startsWith("-")) { del++; rows.push({ type: "del", o: o++, text: l }); }
+        else if (l.startsWith("\\")) rows.push({ type: "note", text: l });
+        else rows.push({ type: "ctx", o: o++, n: n++, text: l });
+      }
+      return { path, status, rows, ins, del };
+    });
+  }
+
+  const diffStat = (ins, del) => [h("span", { class: "green" }, `+${ins}`), " ", h("span", { class: "red" }, `−${del}`)];
+
+  function filePanel(f) {
+    const body = h("div", { class: "file-body" }, f.rows.length
+      ? h("table", { class: "diff" }, h("tbody", {}, f.rows.map((r) =>
+          h("tr", { class: r.type }, h("td", { class: "ln" }, r.o), h("td", { class: "ln" }, r.n), h("td", { class: "code" }, r.text)))))
+      : h("p", { class: "empty" }, "No textual changes."));
+    const btn = h("button", { type: "button", class: "collapse", "aria-expanded": "true" }, icon("chevronDown"), h("span", { class: "file-path" }, f.path));
+    btn.addEventListener("click", () => {
+      body.hidden = !body.hidden;
+      btn.setAttribute("aria-expanded", String(!body.hidden));
+    });
+    return h("div", { class: "file" },
+      h("div", { class: "file-head" }, btn,
+        f.status && h("span", { class: `pill ${f.status === "new" ? "green" : "red"}` }, f.status),
+        h("span", { class: "file-stat" }, diffStat(f.ins, f.del))),
+      body);
+  }
+
+  function diffColumn(cls, label, task) {
+    const col = h("div", { class: "traj-col" });
+    const runs = task?.runs ?? [];
+    if (!runs.length) col.append(h("div", { class: "traj-head" }, h("span", { class: `swatch ${cls}` }), label), h("p", { class: "empty" }, "Not run."));
+    for (const r of runs) {
+      const text = runDiff(r);
+      const files = parseDiff(text ?? "");
+      const sum = (k) => files.reduce((a, f) => a + f[k], 0);
+      col.append(
+        h("div", { class: "traj-head" },
+          h("span", { class: `swatch ${cls}` }), label,
+          text != null && h("span", { class: "pill zinc", title: "files changed" }, files.length),
+          runs.length > 1 && h("span", { class: "muted" }, `run ${r.run_number}`),
+          files.length > 0 && h("span", { class: "faint" }, diffStat(sum("ins"), sum("del")))),
+        text == null ? h("p", { class: "empty" }, `No diff recorded: this result predates the ${DIFF_GRADER} grader.`)
+          : files.length ? h("div", { class: "files" }, files.map(filePanel))
+          : h("p", { class: "empty" }, "No files changed."));
+    }
+    return col;
+  }
+
+  function renderFiles(tasks, baseTasks) {
+    $("#files").replaceChildren(...section("Files changed", legend(),
+      tasks.map((t) => h("section", { class: "task" },
+        tasks.length > 1 && h("div", { class: "task-head" }, h("h3", {}, t.display_name ?? t.test_id)),
+        h("div", { class: "traj" },
+          diffColumn("base", "Without skill", baseTasks.get(t.test_id)),
+          diffColumn("skill", "With skill", t))))));
+  }
+
   function viewToggle() {
     const views = [["conversation", "Conversation"], ["tools", "Tool calls"]];
     const current = () => ($("main").classList.contains("tools-only") ? "tools" : "conversation");
@@ -483,9 +596,9 @@
     const delta = renderHero(d.summary ?? {}, base?.summary);
     renderTitle(d, file, delta);
     renderUsage(d, base);
-    $("#tasks").replaceChildren(
-      h("h2", {}, "Tasks", viewToggle(), legend()),
-      ...(d.tasks ?? []).map((t) => renderTask(t, baseTasks.get(t.test_id))));
+    $("#tasks").replaceChildren(...section("Tasks", [viewToggle(), legend()],
+      (d.tasks ?? []).map((t) => renderTask(t, baseTasks.get(t.test_id)))));
+    renderFiles(d.tasks ?? [], baseTasks);
   }
 
   // Direct children of a directory, read from the http server's HTML directory listing

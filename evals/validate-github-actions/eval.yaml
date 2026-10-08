@@ -36,6 +36,16 @@ graders:
           command_pattern: '\bactionlint\b[^;&|]*\bci\.ya?ml'
         - tool: ^bash$
           command_pattern: '\bzizmor\b[^;&|]*\bci\.ya?ml'
+  # Not a real check: always passes, and records the agent's changes for viz.html
+  - type: program
+    name: workspace_diff
+    # Weight must be > 0, so keep its effect on the score negligible
+    weight: 0.0001
+    config:
+      command: bash
+      args:
+        - graders/workspace-diff.sh
+        - cdk-playground
 
 tasks:
   - "tasks/*.yaml"
