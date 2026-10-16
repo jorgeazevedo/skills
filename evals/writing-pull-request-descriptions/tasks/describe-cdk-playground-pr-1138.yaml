@@ -1,0 +1,15 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/microsoft/waza/main/schemas/task.schema.json
+id: describe-cdk-playground-pr-1138
+name: Describe cdk-playground PR 1138
+description: >-
+  Ask the agent to describe guardian/cdk-playground#1138, which replaces the
+  EC2-only stack with a load balancer that has EC2 and ECS targets.
+inputs:
+  prompt: Write a description for a pull request that merges this branch into main, and save it to PR.md.
+  repos:
+    - type: worktree
+      # Fetched from git@github.com:guardian/cdk-playground.git by hooks/clone-repo.sh, which also points main at the PR's base
+      source: .repos/cdk-playground-pr-1138
+      commit: f796cf539588cd742de83a06ed40c4378a80b490
+      dest: cdk-playground
+  workdir: cdk-playground

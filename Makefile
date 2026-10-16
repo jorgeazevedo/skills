@@ -1,4 +1,5 @@
-EVAL := evals/validate-github-actions
+# Pick an eval with e.g. `make eval EVAL=evals/writing-pull-request-descriptions`
+EVAL ?= evals/validate-github-actions
 RESULTS := $(CURDIR)/$(EVAL)/results
 # Empty Copilot home so personal skills and instructions don't leak into runs
 COPILOT_HOME := $(CURDIR)/.copilot-home
@@ -21,7 +22,7 @@ without-skill:
 serve:
 	mise exec -- waza serve --results-dir $(RESULTS)
 
-# waza's dashboard doesn't show the --baseline comparison, so this does
+# waza's dashboard doesn't show the --baseline comparison, so each eval's viz.html does; index.html links to them
 viz:
-	@echo "Skill A/B report: http://localhost:3100/viz.html"
+	@echo "Eval reports: http://localhost:3100/"
 	mise exec -- npx --yes http-server@14.1.1 -a 127.0.0.1 -p 3100 -c-1 --silent

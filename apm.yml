@@ -12,5 +12,10 @@ marketplace:
   packages:
   - name: validate-github-actions
     source: ./skills/validate-github-actions
-    description: Validate GitHub Actions workflow YAML files using actionlint and zizmor
+    description: Validate GitHub Actions workflow YAML files using actionlint 
+      and zizmor
+    version: 0.1.0
+  - name: writing-pull-request-descriptions
+    source: ./skills/writing-pull-request-descriptions
+    description: Write pull request descriptions in plain, connected prose
     version: 0.1.0

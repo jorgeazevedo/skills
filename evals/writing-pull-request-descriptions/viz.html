@@ -1,0 +1,700 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>waza — skill vs baseline</title>
+<style>
+  /* Tailwind palette, matching the waza dashboard */
+  :root {
+    --zinc-100: oklch(0.967 0.001 286.375);
+    --zinc-200: oklch(0.92 0.004 286.32);
+    --zinc-300: oklch(0.871 0.006 286.286);
+    --zinc-400: oklch(0.705 0.015 286.067);
+    --zinc-500: oklch(0.552 0.016 285.938);
+    --zinc-700: oklch(0.37 0.013 285.805);
+    --zinc-800: oklch(0.274 0.006 286.033);
+    --zinc-900: oklch(0.21 0.006 285.885);
+    --green: oklch(0.723 0.219 149.579);
+    --red: oklch(0.637 0.237 25.331);
+    --blue: oklch(0.623 0.214 259.815);
+    --blue-400: oklch(0.707 0.165 254.624);
+    --yellow: oklch(0.795 0.184 86.047);
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--zinc-900); color: var(--zinc-100); font: 16px/1.5 var(--sans); -webkit-font-smoothing: antialiased; }
+  svg.icon { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  header { border-bottom: 1px solid var(--zinc-800); padding: 16px 24px; display: flex; align-items: center; gap: 24px; }
+  .brand { display: flex; align-items: center; gap: 8px; color: inherit; text-decoration: none; }
+  .brand svg.icon { width: 20px; height: 20px; color: var(--blue); }
+  .brand b { font-weight: 600; font-size: 18px; }
+  .brand span { color: var(--zinc-400); font-size: 14px; }
+  .picker { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--zinc-400); }
+  select {
+    font: 14px var(--sans); color: var(--zinc-100); background: var(--zinc-800);
+    border: 1px solid var(--zinc-700); border-radius: 4px; padding: 6px 10px; max-width: 60vw;
+  }
+
+  main { padding: 32px 24px 64px; max-width: 1400px; margin: 0 auto; }
+  .title { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 24px; }
+  h1 { font-size: 24px; font-weight: 600; margin: 0; }
+  .muted { color: var(--zinc-400); }
+  .faint { color: var(--zinc-500); }
+  .small { font-size: 14px; }
+
+  .pill { display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; padding: 2px 8px; font-size: 12px; font-weight: 500; white-space: nowrap; }
+  .pill svg.icon { width: 14px; height: 14px; }
+  .pill.green { color: var(--green); background: oklch(0.723 0.219 149.579 / 0.1); }
+  .pill.red { color: var(--red); background: oklch(0.637 0.237 25.331 / 0.1); }
+  .pill.yellow { color: var(--yellow); background: oklch(0.795 0.184 86.047 / 0.1); }
+  .pill.zinc { color: var(--zinc-400); background: oklch(0.552 0.016 285.938 / 0.15); }
+  .pill.blue { color: var(--blue-400); background: oklch(0.623 0.214 259.815 / 0.12); }
+
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .card { border: 1px solid var(--zinc-700); background: var(--zinc-800); border-radius: 8px; padding: 16px; }
+  .card-head { display: flex; justify-content: space-between; align-items: center; font-size: 14px; color: var(--zinc-400); }
+  .card-value { margin: 8px 0 4px; font-size: 24px; font-weight: 600; }
+  .card-sub { font-size: 12px; color: var(--zinc-500); }
+  .green { color: var(--green); }
+  .red { color: var(--red); }
+
+  .notice { margin-top: 16px; border: 1px solid var(--zinc-700); border-left: 3px solid var(--yellow); background: var(--zinc-800); border-radius: 8px; padding: 12px 16px; font-size: 14px; color: var(--zinc-300); }
+
+  h2 { display: flex; align-items: center; gap: 16px; font-size: 18px; font-weight: 600; margin: 40px 0 12px; }
+  .collapse { display: inline-flex; align-items: center; gap: 8px; font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+  .collapse:focus-visible { outline: 2px solid var(--blue); outline-offset: 4px; border-radius: 4px; }
+  .collapse svg.icon { color: var(--zinc-400); transition: transform .15s; }
+  .collapse[aria-expanded="false"] svg.icon { transform: rotate(-90deg); }
+  .legend { margin-left: auto; display: flex; gap: 16px; font-size: 12px; font-weight: 400; color: var(--zinc-400); }
+  .toggle { display: flex; gap: 4px; }
+  .toggle button { font: 14px var(--sans); color: var(--zinc-400); background: none; border: 0; border-radius: 4px; padding: 6px 12px; cursor: pointer; transition: color .15s; }
+  .toggle button:hover { color: var(--zinc-200); }
+  .toggle button[aria-pressed="true"] { background: var(--zinc-800); color: var(--zinc-100); }
+  .tools-only .chat > :not(.tool-call) { display: none; }
+  /* Tool calls view: one numbered row per call, as a scannable list */
+  .tool-compact { display: none; }
+  .tools-only .chat { padding: 0; gap: 0; counter-reset: call; }
+  .tools-only .tool-call { counter-increment: call; position: relative; border: 0; border-radius: 0; border-bottom: 1px solid oklch(0.37 0.013 285.805 / 0.5); padding: 8px 16px 8px 44px; }
+  .tools-only .tool-call::before { content: counter(call); position: absolute; left: 12px; top: 9px; width: 20px; text-align: right; font: 12px var(--mono); color: var(--zinc-500); }
+  .tools-only .tool-call.hit { box-shadow: inset 2px 0 var(--blue); border-color: oklch(0.37 0.013 285.805 / 0.5); }
+  .tools-only .tool-call > .tool-line, .tools-only .tool-body { display: none; }
+  .tools-only .tool-compact { display: block; }
+  .tool-compact b { color: var(--zinc-100); font-weight: 600; }
+  code.brief { display: block; margin-top: 2px; font: 12px/1.5 var(--mono); color: var(--zinc-300); white-space: pre-wrap; word-break: break-word; max-height: 4.5em; overflow: hidden; }
+  .swatch { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; }
+  .swatch.base, .bar.base { background: var(--zinc-500); }
+  .swatch.skill, .bar.skill { background: var(--blue); }
+
+  .table-wrap { border: 1px solid var(--zinc-700); border-radius: 8px; overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; }
+  th { padding: 12px 16px; font-size: 12px; font-weight: 500; text-transform: uppercase; color: var(--zinc-400); border-bottom: 1px solid var(--zinc-700); }
+  td { padding: 12px 16px; background: var(--zinc-800); border-bottom: 1px solid oklch(0.37 0.013 285.805 / 0.5); vertical-align: middle; }
+  tr:last-child td { border-bottom: 0; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .bars { display: grid; gap: 3px; min-width: 120px; }
+  .bar { height: 6px; border-radius: 3px; }
+  .feedback { display: block; margin-top: 4px; font-size: 12px; color: var(--zinc-500); }
+  .pattern { display: block; font: 12px var(--mono); color: var(--zinc-500); margin-top: 2px; }
+
+  .task { margin-top: 24px; }
+  .task-head { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; }
+  .task-head h3 { margin: 0; font-size: 16px; font-weight: 600; }
+  .task-head .rates { margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 14px; }
+
+  .traj { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+  .traj-col { border: 1px solid var(--zinc-700); background: var(--zinc-800); border-radius: 8px; overflow: hidden; }
+  .traj-head { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--zinc-700); font-size: 14px; font-weight: 500; }
+  .traj-head .faint { margin-left: auto; font-weight: 400; font-size: 12px; }
+  .chat { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .msg-user { align-self: flex-end; max-width: 85%; background: var(--zinc-700); border-radius: 8px; padding: 8px 12px; font-size: 14px; white-space: pre-wrap; }
+  .msg-text { font-size: 14px; line-height: 1.6; color: var(--zinc-200); white-space: pre-wrap; word-break: break-word; }
+  .msg-text code, .thinking code, .tool-line code { font: 12px var(--mono); color: var(--zinc-100); background: var(--zinc-900); border: 1px solid var(--zinc-700); border-radius: 4px; padding: 0 4px; }
+  .thinking { display: flex; gap: 8px; align-items: baseline; font-size: 13px; font-style: italic; color: var(--zinc-400); border-left: 2px solid var(--zinc-700); padding-left: 10px; }
+  .thinking svg.icon { width: 14px; height: 14px; align-self: center; font-style: normal; }
+  .context { font-size: 13px; color: var(--zinc-400); }
+  .context summary { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+  .tool-call { border: 1px solid var(--zinc-700); border-radius: 6px; padding: 6px 10px; font-size: 13px; }
+  .tool-call.hit { border-color: var(--blue); background: oklch(0.623 0.214 259.815 / 0.08); }
+  .tool-line { display: flex; align-items: center; gap: 8px; color: var(--zinc-300); flex-wrap: wrap; }
+  .tool-line > svg.icon { width: 14px; height: 14px; color: var(--zinc-400); }
+  .tool-line .fail { color: var(--red); margin-left: auto; }
+  .tool-line code { word-break: break-all; }
+  details { margin-top: 4px; }
+  summary { cursor: pointer; font-size: 12px; color: var(--zinc-500); }
+  summary:hover { color: var(--zinc-200); }
+  pre { margin: 6px 0 0; padding: 8px 10px; background: oklch(0.141 0.005 285.823); border: 1px solid var(--zinc-700); border-radius: 4px; font: 12px/1.5 var(--mono); color: var(--zinc-300); white-space: pre-wrap; word-break: break-word; max-height: 320px; overflow: auto; font-style: normal; }
+  pre .del { color: var(--red); }
+  pre .ins { color: var(--green); }
+  .files { display: flex; flex-direction: column; gap: 12px; padding: 12px; }
+  .file { border: 1px solid var(--zinc-700); border-radius: 6px; overflow: hidden; }
+  .file-head { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--zinc-900); border-bottom: 1px solid var(--zinc-700); }
+  .file-head .collapse { min-width: 0; text-align: left; }
+  .file-path { font: 12px var(--mono); color: var(--zinc-100); overflow-wrap: anywhere; }
+  .file-stat { margin-left: auto; font: 12px var(--mono); white-space: nowrap; }
+  .file-body { overflow-y: auto; max-height: 640px; background: oklch(0.141 0.005 285.823); color-scheme: dark; }
+  .prose { padding: 16px 20px; font-size: 14px; line-height: 1.7; color: var(--zinc-200); overflow-wrap: anywhere; }
+  .prose > :first-child { margin-top: 0; }
+  .prose h3, .prose h4, .prose h5, .prose h6 { margin: 20px 0 8px; font-weight: 600; color: var(--zinc-100); }
+  .prose h3 { font-size: 18px; }
+  .prose h4 { font-size: 16px; }
+  .prose h5, .prose h6 { font-size: 14px; }
+  .prose p, .prose ul, .prose ol, .prose blockquote, .prose pre { margin: 0 0 12px; }
+  .prose ul, .prose ol { padding-left: 24px; }
+  .prose blockquote { border-left: 2px solid var(--zinc-700); padding-left: 12px; color: var(--zinc-400); }
+  .prose hr { border: 0; border-top: 1px solid var(--zinc-700); margin: 16px 0; }
+  .prose a { color: var(--blue-400); }
+  .prose code { font: 12px var(--mono); color: var(--zinc-100); background: var(--zinc-900); border: 1px solid var(--zinc-700); border-radius: 4px; padding: 0 4px; }
+  .prose pre { max-height: none; }
+  .empty { padding: 12px 16px; font-size: 14px; color: var(--zinc-500); }
+  footer { margin-top: 48px; font: 12px var(--mono); color: var(--zinc-500); }
+
+  @media (max-width: 900px) { .cards, .traj { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <a class="brand" href="../../"><span id="logo"></span><b>waza</b><span>skill vs baseline</span></a>
+  <label class="picker">Result <select id="file"></select></label>
+</header>
+<main>
+  <div class="title" id="title"></div>
+  <section class="cards" id="hero"></section>
+  <div id="notice"></div>
+  <div id="usage"></div>
+  <div id="tasks"></div>
+  <div id="markdown"></div>
+  <footer id="footer"></footer>
+</main>
+<script>
+  const $ = (s) => document.querySelector(s);
+
+  // Children are appended as text nodes, never parsed as HTML
+  function h(tag, attrs = {}, ...kids) {
+    const el = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs)) {
+      if (v == null || v === false) continue;
+      if (k === "class") el.className = v;
+      else if (k === "style") el.style.cssText = v;
+      else el.setAttribute(k, v);
+    }
+    for (const kid of kids.flat(Infinity)) {
+      if (kid != null && kid !== false && kid !== "") el.append(kid instanceof Node ? kid : String(kid));
+    }
+    return el;
+  }
+
+  // Lucide icons, as used by the waza dashboard
+  const ICONS = {
+    activity: ["M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"],
+    check: ["M12 2a10 10 0 1 0 0 20 10 10 0 1 0 0-20", "m9 12 2 2 4-4"],
+    x: ["M12 2a10 10 0 1 0 0 20 10 10 0 1 0 0-20", "m15 9-6 6", "m9 9 6 6"],
+    minus: ["M12 2a10 10 0 1 0 0 20 10 10 0 1 0 0-20", "M8 12h8"],
+    trendUp: ["M16 7h6v6", "m22 7-8.5 8.5-5-5L2 17"],
+    trendDown: ["M16 17h6v-6", "m22 17-8.5-8.5-5 5L2 7"],
+    zap: ["M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"],
+    circle: ["M12 2a10 10 0 1 0 0 20 10 10 0 1 0 0-20"],
+    arrowRight: ["M5 12h14", "m12 5 7 7-7 7"],
+    terminal: ["m4 17 6-6-6-6", "M12 19h8"],
+    file: ["M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z", "M14 2v4a2 2 0 0 0 2 2h4", "M10 9H8", "M16 13H8", "M16 17H8"],
+    search: ["M11 3a8 8 0 1 0 0 16 8 8 0 1 0 0-16", "m21 21-4.3-4.3"],
+    pencil: ["M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z", "m15 5 4 4"],
+    book: ["M12 7v14", "M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"],
+    wrench: ["M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"],
+    lightbulb: ["M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5", "M9 18h6", "M10 22h4"],
+    chevronDown: ["m6 9 6 6 6-6"],
+  };
+  function icon(name) {
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("class", "icon");
+    for (const d of ICONS[name]) {
+      const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      p.setAttribute("d", d);
+      svg.append(p);
+    }
+    return svg;
+  }
+
+  const pct = (x) => (x == null ? "—" : `${Math.round(x * 100)}%`);
+  const signed = (n) => (n > 0 ? `+${n}` : `${n}`);
+  const num = (n) => (n == null ? "—" : n >= 1000 ? `${(n / 1000).toFixed(1)}K` : `${Math.round(n)}`);
+  const duration = (ms) => {
+    if (ms == null) return "—";
+    const s = Math.round(ms / 1000);
+    return s >= 60 ? `${Math.floor(s / 60)}m ${s % 60}s` : `${s}s`;
+  };
+  const ago = (ts) => {
+    const mins = Math.round((Date.now() - new Date(ts)) / 60000);
+    if (mins < 60) return `${mins} minute${mins === 1 ? "" : "s"} ago`;
+    const hrs = Math.round(mins / 60);
+    if (hrs < 24) return `${hrs} hour${hrs === 1 ? "" : "s"} ago`;
+    const days = Math.round(hrs / 24);
+    return `${days} day${days === 1 ? "" : "s"} ago`;
+  };
+
+  function statusPill(passed, label) {
+    return passed
+      ? h("span", { class: "pill green" }, icon("check"), label ?? "pass")
+      : h("span", { class: "pill red" }, icon("x"), label ?? "fail");
+  }
+
+  // Kept across re-renders, so switching results doesn't reopen sections
+  const collapsed = new Set();
+
+  function section(title, extras, ...body) {
+    const content = h("div", {}, body);
+    const btn = h("button", { type: "button", class: "collapse", "aria-expanded": String(!collapsed.has(title)) }, icon("chevronDown"), title);
+    content.hidden = collapsed.has(title);
+    btn.addEventListener("click", () => {
+      const open = content.hidden;
+      content.hidden = !open;
+      btn.setAttribute("aria-expanded", String(open));
+      if (open) collapsed.delete(title); else collapsed.add(title);
+    });
+    return [h("h2", {}, btn, extras), content];
+  }
+
+  function legend() {
+    return h("span", { class: "legend" },
+      h("span", {}, h("span", { class: "swatch base" }), "without skill"),
+      h("span", {}, h("span", { class: "swatch skill" }), "with skill"));
+  }
+
+  function renderTitle(d, file, delta) {
+    const verdict = delta == null ? h("span", { class: "pill zinc" }, "no baseline")
+      : delta > 0 ? h("span", { class: "pill green" }, icon("trendUp"), "improved")
+      : delta < 0 ? h("span", { class: "pill red" }, icon("trendDown"), "regressed")
+      : h("span", { class: "pill zinc" }, icon("minus"), "no change");
+    $("#title").replaceChildren(
+      h("h1", {}, d.skill ?? d.eval_name), verdict,
+      h("span", { class: "muted" }, d.config?.model_id ?? ""),
+      d.timestamp && h("span", { class: "faint", title: new Date(d.timestamp).toLocaleString() }, ago(d.timestamp)));
+    $("#footer").replaceChildren(file);
+  }
+
+  function renderHero(skill, base) {
+    const delta = base ? Math.round((skill.success_rate - base.success_rate) * 100) : null;
+    const card = (label, iconName, value, cls, sub) => h("div", { class: "card" },
+      h("div", { class: "card-head" }, h("span", {}, label), icon(iconName)),
+      h("div", { class: `card-value ${cls}` }, value),
+      h("div", { class: "card-sub" }, sub));
+    const rateCls = (s) => (s?.success_rate === 1 ? "green" : s?.success_rate === 0 ? "red" : "");
+    const sub = (s) => (s ? `${s.succeeded}/${s.total_tests} tasks passed · avg score ${pct(s.aggregate_score)}` : "not run");
+    $("#hero").replaceChildren(
+      card("Without skill", "circle", base ? pct(base.success_rate) : "—", rateCls(base), sub(base)),
+      card("With skill", "zap", pct(skill.success_rate), rateCls(skill), sub(skill)),
+      card("Change", delta < 0 ? "trendDown" : "trendUp", delta == null ? "—" : `${signed(delta)} pp`,
+        delta > 0 ? "green" : delta < 0 ? "red" : "", "pass rate, with skill vs without"));
+    $("#notice").replaceChildren(base ? "" : h("div", { class: "notice" },
+      "This result has no baseline. Re-run with `make eval` (waza run --baseline) to compare against a run without the skill."));
+    return delta;
+  }
+
+  function toolCalls(outcome) {
+    return (outcome?.tasks ?? []).flatMap((t) => t.runs ?? [])
+      .reduce((n, r) => n + (r.session_digest?.tool_call_count ?? 0), 0);
+  }
+
+  function renderUsage(d, base) {
+    const metrics = [
+      ["Duration", (o) => o.summary?.duration_ms, duration],
+      ["Turns", (o) => o.summary?.usage?.turns],
+      ["Tool calls", toolCalls],
+      ["Input tokens", (o) => o.summary?.usage?.input_tokens],
+      ["Output tokens", (o) => o.summary?.usage?.output_tokens],
+      ["Credits", (o) => o.summary?.usage?.premium_requests],
+    ];
+    const rows = metrics.map(([label, get, fmt = num]) => {
+      const w = get(d);
+      const b = base ? get(base) : null;
+      const max = Math.max(w ?? 0, b ?? 0) || 1;
+      return h("tr", {},
+        h("td", {}, label),
+        h("td", { style: "width:40%" }, h("div", { class: "bars" },
+          h("div", { class: "bar base", style: `width:${((b ?? 0) / max) * 100}%` }),
+          h("div", { class: "bar skill", style: `width:${((w ?? 0) / max) * 100}%` }))),
+        h("td", { class: "num muted" }, b == null ? "—" : fmt(b)),
+        h("td", { class: "num" }, w == null ? "—" : fmt(w)),
+        h("td", { class: "num muted" }, b ? `${signed(Math.round(((w - b) / b) * 100))}%` : "—"));
+    });
+    $("#usage").replaceChildren(...section("Usage", legend(),
+      h("div", { class: "table-wrap" }, h("table", {},
+        h("thead", {}, h("tr", {},
+          h("th", {}, "Metric"), h("th", {}), h("th", { class: "num" }, "Without skill"),
+          h("th", { class: "num" }, "With skill"), h("th", { class: "num" }, "Change"))),
+        h("tbody", {}, rows)))));
+  }
+
+  // tool_constraint graders record their expectations as "<tool regex> (command_pattern: <regex>)"
+  function graderPatterns(...tasks) {
+    const patterns = new Map();
+    for (const run of tasks.flatMap((t) => t?.runs ?? [])) {
+      for (const [name, v] of Object.entries(run.validations ?? {})) {
+        if (v.type !== "tool_constraint" || patterns.has(name)) continue;
+        patterns.set(name, (v.details?.expect_tools ?? []).flatMap((s) => {
+          const m = /^(.*?) \(command_pattern: (.*)\)$/.exec(s);
+          try {
+            return [{ name, tool: new RegExp(m ? m[1] : s), cmd: m ? new RegExp(m[2]) : null }];
+          } catch {
+            return []; // unparseable pattern: skip highlighting
+          }
+        }));
+      }
+    }
+    return [...patterns.values()].flat();
+  }
+
+  function graderCell(task, name) {
+    const results = (task?.runs ?? []).map((r) => r.validations?.[name]).filter(Boolean);
+    if (!results.length) return h("td", { class: "faint" }, "—");
+    const passed = results.filter((v) => v.passed).length;
+    const label = results.length === 1 ? null : `${passed}/${results.length}`;
+    const pill = passed === results.length ? statusPill(true, label)
+      : passed === 0 ? statusPill(false, label)
+      : h("span", { class: "pill yellow" }, label);
+    const failing = results.find((v) => !v.passed);
+    return h("td", {}, pill, failing && h("span", { class: "feedback" }, failing.feedback));
+  }
+
+  const parse = (v) => {
+    if (typeof v !== "string") return v ?? {};
+    try { return JSON.parse(v); } catch { return { value: v }; }
+  };
+
+  // The agent session in order; falls back to bare tool calls for results without a transcript
+  function conversation(r) {
+    const tr = r.transcript ?? [];
+    if (!tr.length) {
+      return (r.session_digest?.tool_calls ?? []).map((c) =>
+        ({ kind: "tool", name: c.name, args: c.arguments ?? {}, result: c.result, success: c.success }));
+    }
+    const done = new Map(tr.filter((e) => e.type === "tool.execution_complete").map((e) => [e.tool_call_id, e]));
+    return tr.flatMap((e) => {
+      switch (e.type) {
+        case "user.message":
+          return [{ kind: e.content?.startsWith("<skill-context") ? "context" : "user", text: e.content ?? "" }];
+        case "assistant.reasoning":
+          return e.content ? [{ kind: "thinking", text: e.content }] : [];
+        case "assistant.message":
+          return e.content ? [{ kind: "assistant", text: e.content }] : [];
+        case "tool.execution_start": {
+          const end = done.get(e.tool_call_id);
+          return [{ kind: "tool", name: e.tool_name, args: parse(e.arguments), result: parse(end?.tool_result), success: end?.success }];
+        }
+        default:
+          return [];
+      }
+    });
+  }
+
+  // Just enough markdown for agent replies: fenced blocks, inline code, bold
+  function md(text) {
+    return text.split(/```[^\n]*\n([\s\S]*?)```/).map((part, i) => (i % 2
+      ? h("pre", {}, part.replace(/\n$/, ""))
+      : part.split(/(`[^`\n]+`|\*\*[^*\n]+\*\*)/).map((s, j) => (j % 2 === 0 ? s
+        : s.startsWith("`") ? h("code", {}, s.slice(1, -1)) : h("b", {}, s.slice(2, -2))))));
+  }
+
+  function summarize(args = {}) {
+    for (const k of ["command", "skill", "path", "pattern", "query", "description"]) if (args[k]) return args[k];
+    return Object.entries(args).filter(([, v]) => v !== "" && v != null)
+      .map(([k, v]) => `${k}=${typeof v === "string" ? v : JSON.stringify(v)}`).join(" ");
+  }
+
+  function diff(oldStr = "", newStr = "") {
+    return h("pre", {},
+      oldStr.split("\n").map((l) => h("span", { class: "del" }, `- ${l}\n`)),
+      newStr.split("\n").map((l) => h("span", { class: "ins" }, `+ ${l}\n`)));
+  }
+
+  function toolItem(c, patterns, ws) {
+    const a = c.args ?? {};
+    const rel = (p = "") => (ws && p.startsWith(`${ws}/`) ? p.slice(ws.length + 1) : p);
+    const code = (s) => h("code", {}, s);
+    const hits = [...new Set(patterns
+      .filter((p) => p.tool.test(c.name) && (!p.cmd || p.cmd.test(a.command ?? "")))
+      .map((p) => p.name))];
+    let [iconName, title, body] = ["wrench", [`${c.name} `, code(summarize(a))], null];
+    if (c.name === "bash") {
+      [iconName, title, body] = ["terminal", a.description || "Ran terminal command",
+        h("pre", {}, `$ ${(a.command ?? "").replace(/^cd \S+ && /, "")}`)];
+    } else if (c.name === "view") {
+      const range = a.view_range && `, lines ${a.view_range[0]}–${a.view_range[1] === -1 ? "end" : a.view_range[1]}`;
+      [iconName, title] = ["file", ["Read ", code(rel(a.path)), range]];
+    } else if (c.name === "glob") {
+      [iconName, title] = ["search", ["Searched for files matching ", code(a.pattern)]];
+    } else if (c.name === "edit") {
+      [iconName, title, body] = ["pencil", ["Edited ", code(rel(a.path))], diff(a.old_str, a.new_str)];
+    } else if (c.name === "skill") {
+      [iconName, title] = ["book", ["Loaded skill ", code(a.skill)]];
+    }
+    const out = c.result?.detailedContent || c.result?.content || "";
+    const chips = hits.map((n) => h("span", { class: "pill blue" }, n));
+    const fail = c.success === false && h("span", { class: "fail", title: "tool call failed" }, icon("x"));
+    const brief = a.command ? a.command.replace(/^cd \S+ && /, "") : rel(summarize(a));
+    return h("div", { class: `tool-call${hits.length ? " hit" : ""}` },
+      h("div", { class: "tool-line" }, icon(iconName), h("span", {}, title), chips, fail),
+      h("div", { class: "tool-compact" },
+        h("div", { class: "tool-line" }, h("b", {}, c.name), chips.map((n) => n.cloneNode(true)), fail && fail.cloneNode(true)),
+        h("code", { class: "brief" }, brief)),
+      body && h("div", { class: "tool-body" }, body),
+      out && h("details", {}, h("summary", {}, "Output"), h("pre", {}, out.length > 6000 ? `${out.slice(0, 6000)}\n…` : out)));
+  }
+
+  function chatItem(e, patterns, ws) {
+    switch (e.kind) {
+      case "user": return h("div", { class: "msg-user" }, e.text);
+      case "thinking": return h("div", { class: "thinking" }, icon("lightbulb"), h("span", {}, md(e.text)));
+      case "assistant": return h("div", { class: "msg-text" }, md(e.text));
+      case "context": return h("details", { class: "context" },
+        h("summary", {}, icon("book"), `Skill context: ${/name="([^"]+)"/.exec(e.text)?.[1] ?? "skill"}`),
+        h("pre", {}, e.text));
+      default: return toolItem(e, patterns, ws);
+    }
+  }
+
+  function trajColumn(cls, label, task, patterns) {
+    const col = h("div", { class: "traj-col" });
+    if (!task) {
+      col.append(h("div", { class: "traj-head" }, h("span", { class: `swatch ${cls}` }), label), h("p", { class: "empty" }, "Not run."));
+      return col;
+    }
+    for (const r of task.runs ?? []) {
+      const events = conversation(r);
+      const calls = events.filter((e) => e.kind === "tool").length;
+      col.append(
+        h("div", { class: "traj-head" },
+          h("span", { class: `swatch ${cls}` }), label,
+          task.runs.length > 1 && h("span", { class: "muted" }, `run ${r.run_number}`),
+          statusPill(r.status === "passed", r.status),
+          h("span", { class: "faint" }, `${calls} tool calls · ${duration(r.duration_ms)}`)),
+        events.length
+          ? h("div", { class: "chat" }, events.map((e) => chatItem(e, patterns, r.workspace_dir)))
+          : h("p", { class: "empty" }, "No activity recorded."));
+    }
+    return col;
+  }
+
+  function renderTask(t, b) {
+    const withRate = t.skill_impact?.pass_rate_with_skills ?? t.stats?.pass_rate;
+    const baseRate = t.skill_impact?.pass_rate_baseline ?? b?.stats?.pass_rate;
+    const names = [...new Set([t, b].flatMap((x) => (x?.runs ?? []).flatMap((r) => Object.keys(r.validations ?? {}))))];
+    const patterns = graderPatterns(t, b);
+    const describe = (n) => patterns.filter((x) => x.name === n)
+      .map((p) => h("span", { class: "pattern" }, `${p.tool.source}${p.cmd ? `  ${p.cmd.source}` : ""}`));
+    const rateCls = (r) => (r === 1 ? "green" : r === 0 ? "red" : "");
+    return h("section", { class: "task" },
+      h("div", { class: "task-head" },
+        h("h3", {}, t.display_name ?? t.test_id),
+        h("span", { class: "faint small" }, t.test_id),
+        h("span", { class: "rates" },
+          h("span", { class: rateCls(baseRate) }, pct(baseRate)),
+          h("span", { class: "faint" }, icon("arrowRight")),
+          h("span", { class: rateCls(withRate) }, pct(withRate)))),
+      h("div", { class: "table-wrap" }, h("table", {},
+        h("thead", {}, h("tr", {},
+          h("th", {}, "Grader"), h("th", { style: "width:28%" }, "Without skill"), h("th", { style: "width:28%" }, "With skill"))),
+        h("tbody", {}, names.map((n) => h("tr", {},
+          h("td", {}, n, describe(n)),
+          graderCell(b, n), graderCell(t, n)))))),
+      h("div", { class: "traj" },
+        trajColumn("base", "Without skill", b, patterns),
+        trajColumn("skill", "With skill", t, patterns)));
+  }
+
+  // Program grader in eval.yaml whose stdout is each markdown file the agent wrote, after a "==> path <==" line
+  const MD_GRADER = "markdown_output";
+
+  function parseMarkdownOutput(text) {
+    const parts = text.split(/^==> (.*) <==\n/m);
+    const files = [];
+    for (let i = 1; i < parts.length; i += 2) files.push({ path: parts[i], text: parts[i + 1] ?? "" });
+    return files;
+  }
+
+  function inline(text) {
+    return text.split(/(`[^`\n]+`|\*\*[^*\n]+\*\*|\[[^\]\n]+\]\([^)\s]+\))/).map((s, i) => {
+      if (i % 2 === 0) return s;
+      if (s.startsWith("`")) return h("code", {}, s.slice(1, -1));
+      if (s.startsWith("**")) return h("b", {}, s.slice(2, -2));
+      const [, label, href] = /^\[(.*)\]\((.*)\)$/.exec(s);
+      // Only web links, so agent output can't inject javascript: URLs
+      return /^https?:\/\//i.test(href) ? h("a", { href, target: "_blank", rel: "noopener noreferrer" }, label) : s;
+    });
+  }
+
+  const ITEM = /^\s*([-*+]|\d+[.)])\s+/;
+
+  // Items indented deeper than the first one, and the lines after them, form a nested list
+  function list(lines) {
+    const indent = (l) => l.match(/^\s*/)[0].length;
+    const base = indent(lines[0]);
+    const items = [];
+    for (const l of lines) {
+      if (!items.length || (ITEM.test(l) && indent(l) <= base)) items.push({ text: [l.replace(ITEM, "")], sub: [] });
+      else if (ITEM.test(l) || items.at(-1).sub.length) items.at(-1).sub.push(l);
+      else items.at(-1).text.push(l.trim());
+    }
+    return h(/^\s*\d/.test(lines[0]) ? "ol" : "ul", {},
+      items.map((it) => h("li", {}, inline(it.text.join(" ")), it.sub.length > 0 && list(it.sub))));
+  }
+
+  // Headings, lists, quotes, fences, tables (as preformatted text) and paragraphs
+  function prose(text) {
+    const lines = text.replace(/\r\n/g, "\n").split("\n");
+    const startsBlock = (l) => /^(```|#{1,6}\s|>|\||(-{3,}|\*{3,})\s*$)/.test(l) || ITEM.test(l);
+    const blocks = [];
+    let i = 0;
+    while (i < lines.length) {
+      const l = lines[i];
+      const start = i;
+      if (!l.trim()) {
+        i++;
+      } else if (l.startsWith("```")) {
+        const end = lines.findIndex((x, j) => j > i && x.startsWith("```"));
+        i = end === -1 ? lines.length : end + 1;
+        blocks.push(h("pre", {}, lines.slice(start + 1, end === -1 ? lines.length : end).join("\n")));
+      } else if (/^#{1,6}\s/.test(l)) {
+        blocks.push(h(`h${Math.min(l.match(/^#+/)[0].length + 2, 6)}`, {}, inline(l.replace(/^#+\s+/, ""))));
+        i++;
+      } else if (/^(-{3,}|\*{3,})\s*$/.test(l)) {
+        blocks.push(h("hr"));
+        i++;
+      } else if (l.startsWith("|")) {
+        while (i < lines.length && lines[i].startsWith("|")) i++;
+        blocks.push(h("pre", {}, lines.slice(start, i).join("\n")));
+      } else if (l.startsWith(">")) {
+        while (i < lines.length && lines[i].startsWith(">")) i++;
+        blocks.push(h("blockquote", {}, inline(lines.slice(start, i).map((x) => x.replace(/^>\s?/, "")).join(" "))));
+      } else if (ITEM.test(l)) {
+        while (i < lines.length && (ITEM.test(lines[i]) || (i > start && /^\s+\S/.test(lines[i])))) i++;
+        blocks.push(list(lines.slice(start, i)));
+      } else {
+        while (i < lines.length && lines[i].trim() && (i === start || !startsBlock(lines[i]))) i++;
+        blocks.push(h("p", {}, inline(lines.slice(start, i).join(" "))));
+      }
+    }
+    return blocks;
+  }
+
+  const words = (s) => s.split(/\s+/).filter(Boolean).length;
+
+  function filePanel(f) {
+    const body = h("div", { class: "file-body prose" }, prose(f.text));
+    const btn = h("button", { type: "button", class: "collapse", "aria-expanded": "true" }, icon("chevronDown"), h("span", { class: "file-path" }, f.path));
+    btn.addEventListener("click", () => {
+      body.hidden = !body.hidden;
+      btn.setAttribute("aria-expanded", String(!body.hidden));
+    });
+    return h("div", { class: "file" },
+      h("div", { class: "file-head" }, btn, h("span", { class: "file-stat faint" }, `${words(f.text)} words`)),
+      body);
+  }
+
+  function markdownColumn(cls, label, task) {
+    const col = h("div", { class: "traj-col" });
+    const runs = task?.runs ?? [];
+    if (!runs.length) col.append(h("div", { class: "traj-head" }, h("span", { class: `swatch ${cls}` }), label), h("p", { class: "empty" }, "Not run."));
+    for (const r of runs) {
+      const v = r.validations?.[MD_GRADER];
+      const files = parseMarkdownOutput(v?.details?.stdout ?? "");
+      col.append(
+        h("div", { class: "traj-head" },
+          h("span", { class: `swatch ${cls}` }), label,
+          v && h("span", { class: "pill zinc", title: "markdown files" }, files.length),
+          runs.length > 1 && h("span", { class: "muted" }, `run ${r.run_number}`)),
+        !v ? h("p", { class: "empty" }, `No markdown recorded: this result predates the ${MD_GRADER} grader.`)
+          : files.length ? h("div", { class: "files" }, files.map(filePanel))
+          : h("p", { class: "empty" }, "No markdown files written."));
+    }
+    return col;
+  }
+
+  function renderMarkdown(tasks, baseTasks) {
+    $("#markdown").replaceChildren(...section("Markdown output", legend(),
+      tasks.map((t) => h("section", { class: "task" },
+        tasks.length > 1 && h("div", { class: "task-head" }, h("h3", {}, t.display_name ?? t.test_id)),
+        h("div", { class: "traj" },
+          markdownColumn("base", "Without skill", baseTasks.get(t.test_id)),
+          markdownColumn("skill", "With skill", t))))));
+  }
+
+  function viewToggle() {
+    const views = [["conversation", "Conversation"], ["tools", "Tool calls"]];
+    const current = () => ($("main").classList.contains("tools-only") ? "tools" : "conversation");
+    const buttons = views.map(([id, label]) => h("button", { type: "button", "data-view": id, "aria-pressed": String(current() === id) }, label));
+    for (const b of buttons) {
+      b.addEventListener("click", () => {
+        $("main").classList.toggle("tools-only", b.dataset.view === "tools");
+        for (const o of buttons) o.setAttribute("aria-pressed", String(o === b));
+      });
+    }
+    return h("span", { class: "toggle", role: "group", "aria-label": "Trajectory view" }, buttons);
+  }
+
+  function render(d, file) {
+    const base = d.baseline_outcome ?? null;
+    const baseTasks = new Map((base?.tasks ?? []).map((t) => [t.test_id, t]));
+    const delta = renderHero(d.summary ?? {}, base?.summary);
+    renderTitle(d, file, delta);
+    renderUsage(d, base);
+    $("#tasks").replaceChildren(...section("Tasks", [viewToggle(), legend()],
+      (d.tasks ?? []).map((t) => renderTask(t, baseTasks.get(t.test_id)))));
+    renderMarkdown(d.tasks ?? [], baseTasks);
+  }
+
+  // Direct children of a directory, read from the http server's HTML directory listing
+  async function listDir(dir) {
+    const res = await fetch(encodeURI(dir), { cache: "no-store" });
+    if (!res.ok) return [];
+    const base = new URL(encodeURI(dir), location.href);
+    const doc = new DOMParser().parseFromString(await res.text(), "text/html");
+    const names = [...doc.querySelectorAll("a[href]")]
+      .map((a) => new URL(a.getAttribute("href"), base))
+      .filter((u) => u.origin === base.origin && u.pathname.startsWith(base.pathname))
+      .map((u) => decodeURIComponent(u.pathname.slice(base.pathname.length)))
+      .filter((n) => n && !n.replace(/\/$/, "").includes("/"));
+    return [...new Set(names)];
+  }
+
+  // results/<timestamp>/<model>.json next to this page, newest first
+  async function listResults() {
+    const files = [];
+    for (const run of (await listDir("results/")).filter((n) => n.endsWith("/"))) {
+      for (const f of (await listDir(`results/${run}`)).filter((n) => n.endsWith(".json"))) files.push(`results/${run}${f}`);
+    }
+    return files.sort((a, b) => b.split("/").at(-2).localeCompare(a.split("/").at(-2)));
+  }
+
+  async function load(file) {
+    const res = await fetch(encodeURI(file), { cache: "no-store" });
+    if (!res.ok) throw new Error(`${res.status} loading ${file}`);
+    render(await res.json(), file);
+  }
+
+  async function init() {
+    $("#logo").replaceChildren(icon("activity"));
+    const files = await listResults();
+    const select = $("#file");
+    select.replaceChildren(...files.map((f) => h("option", { value: f }, f)));
+    if (!files.length) {
+      $("#notice").replaceChildren(h("div", { class: "notice" },
+        "No results found. Run `make eval`, and serve the repo root with an http server that lists directories."));
+      return;
+    }
+    const wanted = new URLSearchParams(location.search).get("file");
+    if (files.includes(wanted)) select.value = wanted;
+    select.addEventListener("change", () => {
+      history.replaceState(null, "", `?file=${encodeURIComponent(select.value)}`);
+      load(select.value);
+    });
+    await load(select.value);
+  }
+
+  init().catch((e) => $("#notice").replaceChildren(h("div", { class: "notice" }, String(e))));
+</script>
+</body>
+</html>

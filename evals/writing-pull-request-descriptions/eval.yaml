@@ -1,0 +1,51 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/microsoft/waza/main/schemas/eval.schema.json
+name: writing-pull-request-descriptions
+description: >-
+  Does the writing-pull-request-descriptions skill change how the agent
+  describes a pull request? Runs the same prompt against a branch of
+  guardian/cdk-playground with the skill installed and, with --baseline or
+  --no-skills, without it. A run passes if the agent wrote a markdown file
+  without looking up the real pull request on GitHub. The viz.html next to
+  this file shows the markdown it wrote side by side.
+skill: writing-pull-request-descriptions
+schemaVersion: "1.2"
+version: "1.0"
+
+# Relative paths (hooks, repos[].source) resolve from the working directory, so run waza from this directory
+config:
+  trials_per_task: 1
+  timeout_seconds: 600
+  parallel: false
+  executor: copilot-sdk
+  model: claude-sonnet-5
+  # Like an installed skill: the agent has to choose to load it, rather than getting it in the system prompt
+  inject_skill_body: false
+  skill_directories:
+    - ../../skills
+
+hooks:
+  before_run:
+    - command: bash hooks/clone-repo.sh
+      error_on_fail: true
+
+graders:
+  # The merged pull request has a human-written description, so the agent mustn't copy it
+  - type: tool_constraint
+    name: no_github_lookup
+    config:
+      reject_tools:
+        - tool: ^bash$
+          command_pattern: '\bgh\b|github\.com'
+        - tool: ^web_fetch$
+        - tool: ^github-mcp-server
+  # viz.html shows the stdout of this grader
+  - type: program
+    name: markdown_output
+    config:
+      command: bash
+      args:
+        - graders/markdown-output.sh
+        - cdk-playground
+
+tasks:
+  - "tasks/*.yaml"

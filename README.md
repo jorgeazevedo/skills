@@ -13,6 +13,7 @@ apm install validate-github-actions@jorgeazevedo-skills
 | Skill | Description |
 | --- | --- |
 | [validate-github-actions](skills/validate-github-actions) | Validate GitHub Actions workflow YAML files using actionlint and zizmor |
+| [writing-pull-request-descriptions](skills/writing-pull-request-descriptions) | Write pull request descriptions in plain, connected prose |
 
 ## Adding a skill
 
