@@ -6,7 +6,8 @@ description: >-
   guardian/cdk-playground with the skill installed and, with --baseline or
   --no-skills, without it. A run passes if the agent wrote a markdown file
   without looking up the real pull request on GitHub. The viz.html next to
-  this file shows the markdown it wrote side by side.
+  this file shows the markdown it wrote side by side, next to the description
+  the pull request's author wrote, which the task holds as a reference.
 skill: writing-pull-request-descriptions
 schemaVersion: "1.2"
 version: "1.0"
@@ -45,6 +46,14 @@ graders:
       command: bash
       args:
         - graders/markdown-output.sh
+        - cdk-playground
+  # viz.html shows the stdout of this grader, which always passes
+  - type: program
+    name: workspace_diff
+    config:
+      command: bash
+      args:
+        - graders/workspace-diff.sh
         - cdk-playground
 
 tasks:

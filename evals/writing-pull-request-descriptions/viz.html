@@ -82,6 +82,7 @@
   .tools-only .tool-call.hit { box-shadow: inset 2px 0 var(--blue); border-color: oklch(0.37 0.013 285.805 / 0.5); }
   .tools-only .tool-call > .tool-line, .tools-only .tool-body { display: none; }
   .tools-only .tool-compact { display: block; }
+  .markdown-view .results-diff, main:not(.markdown-view) .results-markdown { display: none; }
   .tool-compact b { color: var(--zinc-100); font-weight: 600; }
   code.brief { display: block; margin-top: 2px; font: 12px/1.5 var(--mono); color: var(--zinc-300); white-space: pre-wrap; word-break: break-word; max-height: 4.5em; overflow: hidden; }
   .swatch { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; }
@@ -135,6 +136,16 @@
   .file-path { font: 12px var(--mono); color: var(--zinc-100); overflow-wrap: anywhere; }
   .file-stat { margin-left: auto; font: 12px var(--mono); white-space: nowrap; }
   .file-body { overflow-y: auto; max-height: 640px; background: oklch(0.141 0.005 285.823); color-scheme: dark; }
+  table.diff { font: 12px/1.6 var(--mono); }
+  .diff td { padding: 0 8px; background: none; border: 0; vertical-align: top; color: var(--zinc-300); }
+  .diff td.ln { width: 1%; min-width: 4ch; text-align: right; color: var(--zinc-500); user-select: none; }
+  .diff td.code { white-space: pre-wrap; overflow-wrap: anywhere; padding-left: 12px; }
+  .diff tr.ins td { background: oklch(0.723 0.219 149.579 / 0.12); }
+  .diff tr.ins td.ln { background: oklch(0.723 0.219 149.579 / 0.2); }
+  .diff tr.del td { background: oklch(0.637 0.237 25.331 / 0.12); }
+  .diff tr.del td.ln { background: oklch(0.637 0.237 25.331 / 0.2); }
+  .diff tr.hunk td { background: oklch(0.623 0.214 259.815 / 0.1); color: var(--blue-400); padding-top: 4px; padding-bottom: 4px; }
+  .diff tr.note td.code { color: var(--zinc-500); font-style: italic; }
   .prose { padding: 16px 20px; font-size: 14px; line-height: 1.7; color: var(--zinc-200); overflow-wrap: anywhere; }
   .prose > :first-child { margin-top: 0; }
   .prose h3, .prose h4, .prose h5, .prose h6 { margin: 20px 0 8px; font-weight: 600; color: var(--zinc-100); }
@@ -165,7 +176,8 @@
   <div id="notice"></div>
   <div id="usage"></div>
   <div id="tasks"></div>
-  <div id="markdown"></div>
+  <div id="results"></div>
+  <div id="reference"></div>
   <footer id="footer"></footer>
 </main>
 <script>
@@ -481,7 +493,8 @@
   function renderTask(t, b) {
     const withRate = t.skill_impact?.pass_rate_with_skills ?? t.stats?.pass_rate;
     const baseRate = t.skill_impact?.pass_rate_baseline ?? b?.stats?.pass_rate;
-    const names = [...new Set([t, b].flatMap((x) => (x?.runs ?? []).flatMap((r) => Object.keys(r.validations ?? {}))))];
+    const names = [...new Set([t, b].flatMap((x) => (x?.runs ?? []).flatMap((r) => Object.keys(r.validations ?? {}))))]
+      .filter((n) => n !== DIFF_GRADER);
     const patterns = graderPatterns(t, b);
     const describe = (n) => patterns.filter((x) => x.name === n)
       .map((p) => h("span", { class: "pattern" }, `${p.tool.source}${p.cmd ? `  ${p.cmd.source}` : ""}`));
@@ -503,6 +516,71 @@
       h("div", { class: "traj" },
         trajColumn("base", "Without skill", b, patterns),
         trajColumn("skill", "With skill", t, patterns)));
+  }
+
+  // Program grader in eval.yaml whose stdout is the agent's changes as a unified diff
+  const DIFF_GRADER = "workspace_diff";
+
+  const runDiff = (r) => r.validations?.[DIFF_GRADER]?.details?.stdout;
+
+  function parseDiff(text) {
+    return text.split(/^(?=diff --git )/m).filter(Boolean).map((chunk) => {
+      const lines = chunk.replace(/\n$/, "").split("\n");
+      const path = lines[0].match(/^diff --git a\/.* b\/(.*)$/)?.[1] ?? lines[0];
+      const status = lines.find((l) => /^(new|deleted) file mode/.test(l))?.split(" ")[0];
+      const rows = [];
+      let o = 0, n = 0, ins = 0, del = 0;
+      for (const l of lines) {
+        const m = l.match(/^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
+        if (m) { o = +m[1]; n = +m[2]; rows.push({ type: "hunk", text: l }); }
+        else if (!rows.length) continue;
+        else if (l.startsWith("+")) { ins++; rows.push({ type: "ins", n: n++, text: l }); }
+        else if (l.startsWith("-")) { del++; rows.push({ type: "del", o: o++, text: l }); }
+        else if (l.startsWith("\\")) rows.push({ type: "note", text: l });
+        else rows.push({ type: "ctx", o: o++, n: n++, text: l });
+      }
+      return { path, status, rows, ins, del };
+    });
+  }
+
+  const diffStat = (ins, del) => [h("span", { class: "green" }, `+${ins}`), " ", h("span", { class: "red" }, `−${del}`)];
+
+  function diffPanel(f) {
+    const body = h("div", { class: "file-body" }, f.rows.length
+      ? h("table", { class: "diff" }, h("tbody", {}, f.rows.map((r) =>
+          h("tr", { class: r.type }, h("td", { class: "ln" }, r.o), h("td", { class: "ln" }, r.n), h("td", { class: "code" }, r.text)))))
+      : h("p", { class: "empty" }, "No textual changes."));
+    const btn = h("button", { type: "button", class: "collapse", "aria-expanded": "true" }, icon("chevronDown"), h("span", { class: "file-path" }, f.path));
+    btn.addEventListener("click", () => {
+      body.hidden = !body.hidden;
+      btn.setAttribute("aria-expanded", String(!body.hidden));
+    });
+    return h("div", { class: "file" },
+      h("div", { class: "file-head" }, btn,
+        f.status && h("span", { class: `pill ${f.status === "new" ? "green" : "red"}` }, f.status),
+        h("span", { class: "file-stat" }, diffStat(f.ins, f.del))),
+      body);
+  }
+
+  function diffColumn(cls, label, task) {
+    const col = h("div", { class: "traj-col" });
+    const runs = task?.runs ?? [];
+    if (!runs.length) col.append(h("div", { class: "traj-head" }, h("span", { class: `swatch ${cls}` }), label), h("p", { class: "empty" }, "Not run."));
+    for (const r of runs) {
+      const text = runDiff(r);
+      const files = parseDiff(text ?? "");
+      const sum = (k) => files.reduce((a, f) => a + f[k], 0);
+      col.append(
+        h("div", { class: "traj-head" },
+          h("span", { class: `swatch ${cls}` }), label,
+          text != null && h("span", { class: "pill zinc", title: "files changed" }, files.length),
+          runs.length > 1 && h("span", { class: "muted" }, `run ${r.run_number}`),
+          files.length > 0 && h("span", { class: "faint" }, diffStat(sum("ins"), sum("del")))),
+        text == null ? h("p", { class: "empty" }, `No diff recorded: this result predates the ${DIFF_GRADER} grader.`)
+          : files.length ? h("div", { class: "files" }, files.map(diffPanel))
+          : h("p", { class: "empty" }, "No files changed."));
+    }
+    return col;
   }
 
   // Program grader in eval.yaml whose stdout is each markdown file the agent wrote, after a "==> path <==" line
@@ -613,27 +691,68 @@
     return col;
   }
 
-  function renderMarkdown(tasks, baseTasks) {
-    $("#markdown").replaceChildren(...section("Markdown output", legend(),
-      tasks.map((t) => h("section", { class: "task" },
-        tasks.length > 1 && h("div", { class: "task-head" }, h("h3", {}, t.display_name ?? t.test_id)),
-        h("div", { class: "traj" },
-          markdownColumn("base", "Without skill", baseTasks.get(t.test_id)),
-          markdownColumn("skill", "With skill", t))))));
+  function renderResults(tasks, baseTasks) {
+    const view = (cls, column) => tasks.map((t) => h("section", { class: `task ${cls}` },
+      tasks.length > 1 && h("div", { class: "task-head" }, h("h3", {}, t.display_name ?? t.test_id)),
+      h("div", { class: "traj" },
+        column("base", "Without skill", baseTasks.get(t.test_id)),
+        column("skill", "With skill", t))));
+    $("#results").replaceChildren(...section("Results", [resultsToggle(), legend()],
+      view("results-diff", diffColumn), view("results-markdown", markdownColumn)));
   }
 
-  function viewToggle() {
-    const views = [["conversation", "Conversation"], ["tools", "Tool calls"]];
-    const current = () => ($("main").classList.contains("tools-only") ? "tools" : "conversation");
-    const buttons = views.map(([id, label]) => h("button", { type: "button", "data-view": id, "aria-pressed": String(current() === id) }, label));
-    for (const b of buttons) {
-      b.addEventListener("click", () => {
-        $("main").classList.toggle("tools-only", b.dataset.view === "tools");
-        for (const o of buttons) o.setAttribute("aria-pressed", String(o === b));
-      });
-    }
-    return h("span", { class: "toggle", role: "group", "aria-label": "Trajectory view" }, buttons);
+  function renderReference(tasks) {
+    const refs = tasks.filter((t) => references.has(t.test_id));
+    $("#reference").replaceChildren(...(refs.length ? section("Reference", null,
+      refs.map((t) => h("section", { class: "task" },
+        refs.length > 1 && h("div", { class: "task-head" }, h("h3", {}, t.display_name ?? t.test_id)),
+        h("div", { class: "traj-col" }, h("div", { class: "files" }, filePanel(references.get(t.test_id))))))) : []));
   }
+
+  // Task id -> the markdown in the task's expected outcome of type "reference"
+  let references = new Map();
+
+  // Reads only the task's id and the block scalar after the reference outcome's "value: |", so no YAML parser is needed
+  function parseTask(text) {
+    const lines = text.split("\n");
+    const id = lines.map((l) => /^id:\s*["']?([^"'\s]+)/.exec(l)?.[1]).find(Boolean);
+    const type = lines.findIndex((l) => /^\s*(-\s+)?type:\s*reference\s*$/.test(l));
+    const value = lines.findIndex((l, i) => type !== -1 && i > type && /^\s*value:\s*\|\s*$/.test(l));
+    if (value === -1) return { id };
+    const keyIndent = lines[value].search(/\S/);
+    const block = [];
+    for (const l of lines.slice(value + 1)) {
+      if (l.trim() && l.search(/\S/) <= keyIndent) break;
+      block.push(l);
+    }
+    const indent = Math.min(...block.filter((l) => l.trim()).map((l) => l.search(/\S/)));
+    return { id, reference: `${block.map((l) => l.slice(indent)).join("\n").trimEnd()}\n` };
+  }
+
+  async function loadReferences() {
+    const refs = new Map();
+    for (const f of (await listDir("tasks/")).filter((n) => /\.ya?ml$/.test(n))) {
+      const res = await fetch(encodeURI(`tasks/${f}`), { cache: "no-store" });
+      if (!res.ok) continue;
+      const { id, reference } = parseTask(await res.text());
+      if (id && reference) refs.set(id, { path: `tasks/${f}`, text: reference });
+    }
+    return refs;
+  }
+
+  // Tabs that set a class on <main>, so the chosen tab survives switching results
+  function toggle(label, mainClass, [first, second]) {
+    const buttons = [first, second].map((text, i) =>
+      h("button", { type: "button", "aria-pressed": String($("main").classList.contains(mainClass) === (i === 1)) }, text));
+    buttons.forEach((b, i) => b.addEventListener("click", () => {
+      $("main").classList.toggle(mainClass, i === 1);
+      for (const o of buttons) o.setAttribute("aria-pressed", String(o === b));
+    }));
+    return h("span", { class: "toggle", role: "group", "aria-label": label }, buttons);
+  }
+
+  const viewToggle = () => toggle("Trajectory view", "tools-only", ["Conversation", "Tool calls"]);
+  const resultsToggle = () => toggle("Results view", "markdown-view", ["Git diff", "Markdown"]);
 
   function render(d, file) {
     const base = d.baseline_outcome ?? null;
@@ -643,7 +762,8 @@
     renderUsage(d, base);
     $("#tasks").replaceChildren(...section("Tasks", [viewToggle(), legend()],
       (d.tasks ?? []).map((t) => renderTask(t, baseTasks.get(t.test_id)))));
-    renderMarkdown(d.tasks ?? [], baseTasks);
+    renderResults(d.tasks ?? [], baseTasks);
+    renderReference(d.tasks ?? []);
   }
 
   // Direct children of a directory, read from the http server's HTML directory listing
@@ -677,6 +797,7 @@
 
   async function init() {
     $("#logo").replaceChildren(icon("activity"));
+    references = await loadReferences();
     const files = await listResults();
     const select = $("#file");
     select.replaceChildren(...files.map((f) => h("option", { value: f }, f)));

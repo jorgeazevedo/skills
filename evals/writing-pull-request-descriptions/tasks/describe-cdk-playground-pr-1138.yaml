@@ -13,3 +13,18 @@ inputs:
       commit: f796cf539588cd742de83a06ed40c4378a80b490
       dest: cdk-playground
   workdir: cdk-playground
+# The description the PR's author wrote. Not shown to the agent; viz.html shows it next to what the agent wrote.
+expected:
+  outcomes:
+    - type: reference
+      value: |
+        ## What does this change?
+        Updates the EC2 load balancer to have two target groups: EC2 and ECS. This will allow us to use the [migration dashboard](https://metrics.gutools.co.uk/goto/efq7av8bt2xogb?orgId=1) with real data and then develop run-books to help teams triage any issues.
+
+        Specifically, the EC2-only stack has been deleted (which needs to be performed manually) and replaced with a new CloudFormation stack with a load balancer with two targets.
+
+        ## How has this change been tested?
+        After manually deleting the EC2-only CloudFormation stack, I've [successfully deployed this branch to CODE](https://riffraff.gutools.co.uk/deployment/view/230e8870-df8d-40b2-a2dd-c99fd308c1b8).
+
+        ## Have we considered potential risks?
+        We do not yet have a way to deterministically route a request to the ECS target. Therefore, the ECS-only load balancer is still present to assist in things like stress-testing etc.
