@@ -630,23 +630,35 @@
     render(await res.json(), file);
   }
 
+  // Re-reads results/ so runs that finish after the page loaded appear in the picker
+  async function refreshResults() {
+    const select = $("#file");
+    const files = await listResults();
+    if (files.join() === [...select.options].map((o) => o.value).join()) return;
+    const current = select.value;
+    select.replaceChildren(...files.map((f) => h("option", { value: f }, f)));
+    if (current) {
+      select.value = current;
+    } else if (files.length) {
+      const wanted = new URLSearchParams(location.search).get("file");
+      if (files.includes(wanted)) select.value = wanted;
+      await load(select.value);
+    }
+  }
+
   async function init() {
     $("#logo").replaceChildren(icon("activity"));
-    const files = await listResults();
     const select = $("#file");
-    select.replaceChildren(...files.map((f) => h("option", { value: f }, f)));
-    if (!files.length) {
-      $("#notice").replaceChildren(h("div", { class: "notice" },
-        "No results found. Run `make eval`, and serve the repo root with an http server that lists directories."));
-      return;
-    }
-    const wanted = new URLSearchParams(location.search).get("file");
-    if (files.includes(wanted)) select.value = wanted;
     select.addEventListener("change", () => {
       history.replaceState(null, "", `?file=${encodeURIComponent(select.value)}`);
       load(select.value);
     });
-    await load(select.value);
+    await refreshResults();
+    if (!select.options.length) {
+      $("#notice").replaceChildren(h("div", { class: "notice" },
+        "No results found. Run `make eval`, and serve the repo root with an http server that lists directories."));
+    }
+    setInterval(() => refreshResults().catch(() => {}), 3000);
   }
 
   init().catch((e) => $("#notice").replaceChildren(h("div", { class: "notice" }, String(e))));

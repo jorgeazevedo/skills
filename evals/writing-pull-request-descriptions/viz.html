@@ -148,11 +148,22 @@
   .diff tr.note td.code { color: var(--zinc-500); font-style: italic; }
   .prose { padding: 16px 20px; font-size: 14px; line-height: 1.7; color: var(--zinc-200); overflow-wrap: anywhere; }
   .prose > :first-child { margin-top: 0; }
-  .prose h3, .prose h4, .prose h5, .prose h6 { margin: 20px 0 8px; font-weight: 600; color: var(--zinc-100); }
-  .prose h3 { font-size: 18px; }
-  .prose h4 { font-size: 16px; }
-  .prose h5, .prose h6 { font-size: 14px; }
-  .prose p, .prose ul, .prose ol, .prose blockquote, .prose pre { margin: 0 0 12px; }
+  .prose :is(h1, h2, h3, h4, h5, h6) { display: block; margin: 20px 0 8px; font-weight: 600; color: var(--zinc-100); }
+  .prose :is(h1, h2) { font-size: 18px; padding-bottom: 4px; border-bottom: 1px solid var(--zinc-700); }
+  .prose h3 { font-size: 16px; }
+  .prose :is(h4, h5, h6) { font-size: 14px; }
+  .prose p, .prose ul, .prose ol, .prose blockquote, .prose pre, .prose table, .prose .markdown-alert { margin: 0 0 12px; }
+  .prose table { width: auto; font-size: 13px; }
+  .prose :is(th, td) { padding: 4px 12px; border: 1px solid var(--zinc-700); background: none; text-transform: none; color: inherit; }
+  .prose .markdown-alert { border-left: 3px solid var(--alert); padding: 4px 12px; }
+  .prose .markdown-alert > :last-child { margin-bottom: 0; }
+  .prose .markdown-alert-title { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; font-weight: 500; color: var(--alert); }
+  .prose .markdown-alert-title svg { fill: currentColor; }
+  .markdown-alert-note { --alert: var(--blue-400); }
+  .markdown-alert-tip { --alert: var(--green); }
+  .markdown-alert-important { --alert: oklch(0.714 0.203 305.504); }
+  .markdown-alert-warning { --alert: var(--yellow); }
+  .markdown-alert-caution { --alert: var(--red); }
   .prose ul, .prose ol { padding-left: 24px; }
   .prose blockquote { border-left: 2px solid var(--zinc-700); padding-left: 12px; color: var(--zinc-400); }
   .prose hr { border: 0; border-top: 1px solid var(--zinc-700); margin: 16px 0; }
@@ -180,6 +191,9 @@
   <div id="reference"></div>
   <footer id="footer"></footer>
 </main>
+<script src="https://cdn.jsdelivr.net/npm/marked@18.1.1/lib/marked.umd.js" integrity="sha384-rATToyt6602Jnq8c7w8HZwmyOUgPL7mzxX01FBWoV48ns/EgkakGozpES+PnaYOI" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked-alert@2.1.2/dist/index.umd.js" integrity="sha384-VGnihasznn6FG5al1XwKSj9ZiKVHUmnTnH+SgTZHd6wI+KnSHVgkfXvqVghN3HhJ" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.4.17/dist/purify.min.js" integrity="sha384-P0JNneQf81HOl9VwNXK76cQ9VMD6Nfsnepxb0cCOg8+UzEdzgPHAPV4wVQrvYQSx" crossorigin="anonymous"></script>
 <script>
   const $ = (s) => document.querySelector(s);
 
@@ -593,70 +607,10 @@
     return files;
   }
 
-  function inline(text) {
-    return text.split(/(`[^`\n]+`|\*\*[^*\n]+\*\*|\[[^\]\n]+\]\([^)\s]+\))/).map((s, i) => {
-      if (i % 2 === 0) return s;
-      if (s.startsWith("`")) return h("code", {}, s.slice(1, -1));
-      if (s.startsWith("**")) return h("b", {}, s.slice(2, -2));
-      const [, label, href] = /^\[(.*)\]\((.*)\)$/.exec(s);
-      // Only web links, so agent output can't inject javascript: URLs
-      return /^https?:\/\//i.test(href) ? h("a", { href, target: "_blank", rel: "noopener noreferrer" }, label) : s;
-    });
-  }
+  const gfm = new marked.Marked(markedAlert());
 
-  const ITEM = /^\s*([-*+]|\d+[.)])\s+/;
-
-  // Items indented deeper than the first one, and the lines after them, form a nested list
-  function list(lines) {
-    const indent = (l) => l.match(/^\s*/)[0].length;
-    const base = indent(lines[0]);
-    const items = [];
-    for (const l of lines) {
-      if (!items.length || (ITEM.test(l) && indent(l) <= base)) items.push({ text: [l.replace(ITEM, "")], sub: [] });
-      else if (ITEM.test(l) || items.at(-1).sub.length) items.at(-1).sub.push(l);
-      else items.at(-1).text.push(l.trim());
-    }
-    return h(/^\s*\d/.test(lines[0]) ? "ol" : "ul", {},
-      items.map((it) => h("li", {}, inline(it.text.join(" ")), it.sub.length > 0 && list(it.sub))));
-  }
-
-  // Headings, lists, quotes, fences, tables (as preformatted text) and paragraphs
-  function prose(text) {
-    const lines = text.replace(/\r\n/g, "\n").split("\n");
-    const startsBlock = (l) => /^(```|#{1,6}\s|>|\||(-{3,}|\*{3,})\s*$)/.test(l) || ITEM.test(l);
-    const blocks = [];
-    let i = 0;
-    while (i < lines.length) {
-      const l = lines[i];
-      const start = i;
-      if (!l.trim()) {
-        i++;
-      } else if (l.startsWith("```")) {
-        const end = lines.findIndex((x, j) => j > i && x.startsWith("```"));
-        i = end === -1 ? lines.length : end + 1;
-        blocks.push(h("pre", {}, lines.slice(start + 1, end === -1 ? lines.length : end).join("\n")));
-      } else if (/^#{1,6}\s/.test(l)) {
-        blocks.push(h(`h${Math.min(l.match(/^#+/)[0].length + 2, 6)}`, {}, inline(l.replace(/^#+\s+/, ""))));
-        i++;
-      } else if (/^(-{3,}|\*{3,})\s*$/.test(l)) {
-        blocks.push(h("hr"));
-        i++;
-      } else if (l.startsWith("|")) {
-        while (i < lines.length && lines[i].startsWith("|")) i++;
-        blocks.push(h("pre", {}, lines.slice(start, i).join("\n")));
-      } else if (l.startsWith(">")) {
-        while (i < lines.length && lines[i].startsWith(">")) i++;
-        blocks.push(h("blockquote", {}, inline(lines.slice(start, i).map((x) => x.replace(/^>\s?/, "")).join(" "))));
-      } else if (ITEM.test(l)) {
-        while (i < lines.length && (ITEM.test(lines[i]) || (i > start && /^\s+\S/.test(lines[i])))) i++;
-        blocks.push(list(lines.slice(start, i)));
-      } else {
-        while (i < lines.length && lines[i].trim() && (i === start || !startsBlock(lines[i]))) i++;
-        blocks.push(h("p", {}, inline(lines.slice(start, i).join(" "))));
-      }
-    }
-    return blocks;
-  }
+  // GitHub-flavoured markdown, sanitised because it's agent output
+  const prose = (text) => DOMPurify.sanitize(gfm.parse(text), { RETURN_DOM_FRAGMENT: true });
 
   const words = (s) => s.split(/\s+/).filter(Boolean).length;
 
@@ -795,24 +749,36 @@
     render(await res.json(), file);
   }
 
+  // Re-reads results/ so runs that finish after the page loaded appear in the picker
+  async function refreshResults() {
+    const select = $("#file");
+    const files = await listResults();
+    if (files.join() === [...select.options].map((o) => o.value).join()) return;
+    const current = select.value;
+    select.replaceChildren(...files.map((f) => h("option", { value: f }, f)));
+    if (current) {
+      select.value = current;
+    } else if (files.length) {
+      const wanted = new URLSearchParams(location.search).get("file");
+      if (files.includes(wanted)) select.value = wanted;
+      await load(select.value);
+    }
+  }
+
   async function init() {
     $("#logo").replaceChildren(icon("activity"));
     references = await loadReferences();
-    const files = await listResults();
     const select = $("#file");
-    select.replaceChildren(...files.map((f) => h("option", { value: f }, f)));
-    if (!files.length) {
-      $("#notice").replaceChildren(h("div", { class: "notice" },
-        "No results found. Run `make eval`, and serve the repo root with an http server that lists directories."));
-      return;
-    }
-    const wanted = new URLSearchParams(location.search).get("file");
-    if (files.includes(wanted)) select.value = wanted;
     select.addEventListener("change", () => {
       history.replaceState(null, "", `?file=${encodeURIComponent(select.value)}`);
       load(select.value);
     });
-    await load(select.value);
+    await refreshResults();
+    if (!select.options.length) {
+      $("#notice").replaceChildren(h("div", { class: "notice" },
+        "No results found. Run `make eval`, and serve the repo root with an http server that lists directories."));
+    }
+    setInterval(() => refreshResults().catch(() => {}), 3000);
   }
 
   init().catch((e) => $("#notice").replaceChildren(h("div", { class: "notice" }, String(e))));
