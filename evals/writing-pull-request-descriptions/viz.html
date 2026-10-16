@@ -40,6 +40,11 @@
 
   main { padding: 32px 24px 64px; max-width: 1400px; margin: 0 auto; }
   .title { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 24px; }
+  .task-tabs { display: flex; gap: 4px; margin: -8px 0 24px; border-bottom: 1px solid var(--zinc-800); overflow-x: auto; }
+  .task-tabs button { font: 14px var(--sans); color: var(--zinc-400); background: none; border: 0; border-bottom: 2px solid transparent; padding: 8px 12px; cursor: pointer; white-space: nowrap; transition: color .15s; }
+  .task-tabs button:hover { color: var(--zinc-200); }
+  .task-tabs button[aria-pressed="true"] { color: var(--zinc-100); border-bottom-color: var(--blue); }
+  .task-tabs button:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; border-radius: 4px; }
   h1 { font-size: 24px; font-weight: 600; margin: 0; }
   .muted { color: var(--zinc-400); }
   .faint { color: var(--zinc-500); }
@@ -170,6 +175,7 @@
   .prose a { color: var(--blue-400); }
   .prose code { font: 12px var(--mono); color: var(--zinc-100); background: var(--zinc-900); border: 1px solid var(--zinc-700); border-radius: 4px; padding: 0 4px; }
   .prose pre { max-height: none; }
+  .prose pre.mermaid[data-processed] { padding: 12px; text-align: center; white-space: normal; }
   .empty { padding: 12px 16px; font-size: 14px; color: var(--zinc-500); }
   footer { margin-top: 48px; font: 12px var(--mono); color: var(--zinc-500); }
 
@@ -183,6 +189,7 @@
 </header>
 <main>
   <div class="title" id="title"></div>
+  <nav class="task-tabs" id="task-tabs" aria-label="Task" hidden></nav>
   <section class="cards" id="hero"></section>
   <div id="notice"></div>
   <div id="usage"></div>
@@ -194,6 +201,7 @@
 <script src="https://cdn.jsdelivr.net/npm/marked@18.1.1/lib/marked.umd.js" integrity="sha384-rATToyt6602Jnq8c7w8HZwmyOUgPL7mzxX01FBWoV48ns/EgkakGozpES+PnaYOI" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked-alert@2.1.2/dist/index.umd.js" integrity="sha384-VGnihasznn6FG5al1XwKSj9ZiKVHUmnTnH+SgTZHd6wI+KnSHVgkfXvqVghN3HhJ" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3.4.17/dist/purify.min.js" integrity="sha384-P0JNneQf81HOl9VwNXK76cQ9VMD6Nfsnepxb0cCOg8+UzEdzgPHAPV4wVQrvYQSx" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@12.2.0/dist/mermaid.min.js" integrity="sha384-8xUhuLNMjW/cI2Dacg3DR4WliYznvIg0LVG1stctThKD/YVrJFI9TNCFxft5NYgp" crossorigin="anonymous"></script>
 <script>
   const $ = (s) => document.querySelector(s);
 
@@ -609,8 +617,28 @@
 
   const gfm = new marked.Marked(markedAlert());
 
+  // "strict" escapes HTML in agent-written labels and disables click handlers
+  mermaid.initialize({ startOnLoad: false, theme: "dark", securityLevel: "strict" });
+
   // GitHub-flavoured markdown, sanitised because it's agent output
-  const prose = (text) => DOMPurify.sanitize(gfm.parse(text), { RETURN_DOM_FRAGMENT: true });
+  function prose(text) {
+    const frag = DOMPurify.sanitize(gfm.parse(text), { RETURN_DOM_FRAGMENT: true });
+    // Marked as diagrams here, and drawn by drawDiagrams once they're in the page
+    for (const code of frag.querySelectorAll("pre > code.language-mermaid")) {
+      code.parentElement.className = "mermaid";
+      code.parentElement.textContent = code.textContent;
+    }
+    return frag;
+  }
+
+  // Mermaid measures labels as it draws, so a diagram in a hidden tab or section waits until it's on screen
+  const diagramObserver = new IntersectionObserver((entries) => {
+    const nodes = entries.filter((e) => e.isIntersecting).map((e) => e.target);
+    for (const n of nodes) diagramObserver.unobserve(n);
+    // An invalid diagram is drawn as mermaid's error message rather than throwing
+    if (nodes.length) mermaid.run({ nodes, suppressErrors: true });
+  });
+  const drawDiagrams = () => document.querySelectorAll("pre.mermaid").forEach((n) => diagramObserver.observe(n));
 
   const words = (s) => s.split(/\s+/).filter(Boolean).length;
 
@@ -709,6 +737,11 @@
   const resultsToggle = () => toggle("Results view", "markdown-view", ["Git diff", "Markdown"]);
 
   function render(d, file) {
+    shown = { d, file };
+    const tasks = d.tasks ?? [];
+    if (shownTask !== ALL && !tasks.some((t) => t.test_id === shownTask)) shownTask = tasks[0]?.test_id ?? ALL;
+    renderTaskTabs(tasks);
+    if (tasks.length > 1 && shownTask !== ALL) d = { ...scope(d, shownTask), baseline_outcome: scope(d.baseline_outcome, shownTask) };
     const base = d.baseline_outcome ?? null;
     const baseTasks = new Map((base?.tasks ?? []).map((t) => [t.test_id, t]));
     const delta = renderHero(d.summary ?? {}, base?.summary);
@@ -718,6 +751,53 @@
       (d.tasks ?? []).map((t) => renderTask(t, baseTasks.get(t.test_id)))));
     renderResults(d.tasks ?? [], baseTasks);
     renderReference(d.tasks ?? []);
+    drawDiagrams();
+  }
+
+  // Test id of the task the page shows, or ALL; kept when switching results
+  const ALL = "all";
+  let shownTask = new URLSearchParams(location.search).get("task");
+  // The loaded result, re-rendered when switching task
+  let shown = null;
+
+  function setQuery(key, value) {
+    const q = new URLSearchParams(location.search);
+    q.set(key, value);
+    history.replaceState(null, "", `?${q}`);
+  }
+
+  function renderTaskTabs(tasks) {
+    const tabs = $("#task-tabs");
+    tabs.hidden = tasks.length < 2;
+    const tab = (id, label, title) => {
+      const b = h("button", { type: "button", title, "aria-pressed": String(id === shownTask) }, label);
+      b.addEventListener("click", () => {
+        shownTask = id;
+        setQuery("task", id);
+        render(shown.d, shown.file);
+      });
+      return b;
+    };
+    tabs.replaceChildren(...tasks.map((t) => tab(t.test_id, t.display_name ?? t.test_id, t.test_id)),
+      tab(ALL, `All tasks (${tasks.length})`));
+  }
+
+  // The result as if its eval had only this task, so the cards and usage describe that task alone
+  function scope(o, id) {
+    if (!o) return o;
+    const tasks = (o.tasks ?? []).filter((t) => t.test_id === id);
+    const runs = tasks.flatMap((t) => t.runs ?? []);
+    const sum = (get) => runs.reduce((n, r) => n + (get(r) ?? 0), 0);
+    const succeeded = tasks.filter((t) => t.status === "passed").length;
+    return { ...o, tasks, summary: {
+      total_tests: tasks.length,
+      succeeded,
+      success_rate: tasks.length ? succeeded / tasks.length : 0,
+      aggregate_score: tasks[0]?.stats?.avg_score,
+      duration_ms: sum((r) => r.duration_ms),
+      usage: Object.fromEntries(["turns", "input_tokens", "output_tokens", "premium_requests"]
+        .map((k) => [k, sum((r) => r.usage?.[k])])),
+    } };
   }
 
   // Direct children of a directory, read from the http server's HTML directory listing
@@ -770,7 +850,7 @@
     references = await loadReferences();
     const select = $("#file");
     select.addEventListener("change", () => {
-      history.replaceState(null, "", `?file=${encodeURIComponent(select.value)}`);
+      setQuery("file", select.value);
       load(select.value);
     });
     await refreshResults();
