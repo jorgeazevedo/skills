@@ -1,0 +1,27 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/microsoft/waza/main/schemas/task.schema.json
+id: describe-cdk-playground-pr-1089
+name: Describe cdk-playground PR 1089
+description: >-
+  Ask the agent to describe guardian/cdk-playground#1089, which ships the ECS
+  app's logs to Central ELK through a fluentbit sidecar and a Kinesis stream
+  instead of CloudWatch Logs. The change reroutes a flow between components,
+  so it suits a diagram.
+inputs:
+  prompt: Write a description for a pull request that merges this branch into main, and save it to PR.md.
+  repos:
+    - type: worktree
+      # Fetched from git@github.com:guardian/cdk-playground.git by hooks/clone-repo.sh, which also points main at the PR's base
+      source: .repos/cdk-playground-pr-1089
+      commit: dba70f2065d5cbe6a42a4bbfccf391ce2c4857f9
+      dest: cdk-playground
+  workdir: cdk-playground
+# The description the PR's author wrote. Not shown to the agent; viz.html shows it next to what the agent wrote.
+expected:
+  outcomes:
+    - type: reference
+      value: |
+        ## What does this change?
+        Currently, the logs from the Play app running in ECS are being shipped to CloudWatch Logs. Whilst they are accessible, it would be better if they were co-located with the logs from the rest of the estate; the Central ELK stack. This change uses https://github.com/guardian/devx-logs/tree/main/ecs to add a fluentbit sidecar to write these logs to the Kinesis stream consumed by the Central ELK stack.
+
+        ## How has this change been tested?
+        After [deploying](https://riffraff.gutools.co.uk/deployment/view/2cc8c2ae-e623-4456-847f-3acfb49def6c), we can see the [logs in Central ELK](https://logs.gutools.co.uk/s/devx/app/r/s/4EkAU).

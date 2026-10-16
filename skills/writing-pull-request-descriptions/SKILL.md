@@ -23,6 +23,8 @@ Present every PR description using the template below, keeping the four headings
 
 <one or two sentences on what the change does to the system>
 
+<only if the change reroutes requests or data between components: a mermaid flowchart of the new flow>
+
 ## How has this change been tested?
 
 ## How can we measure success?
@@ -37,3 +39,5 @@ Present every PR description using the template below, keeping the four headings
 ```
 
 Keep what you write short, because the reviewer has the diff in front of them. Describe the change in one or two sentences, and no more than 50 words, at the level of what it does to the system. Leave out details the diff already shows, such as file names, construct names, configuration values, wiring and renamed tests. Name only the risks a reviewer would need to act on, such as deleted resources or breaking changes, in one short sentence each.
+
+When the change alters how requests or data flow between components, such as where logs are shipped or which targets a load balancer sends traffic to, follow the description with a `mermaid` flowchart of the flow after the change, because a reader takes in a route faster from a picture than from prose. Keep it to the components the change touches, with at most six nodes, and mark what is new. Leave the diagram out for any other change.

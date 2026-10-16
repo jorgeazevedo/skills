@@ -1,6 +1,6 @@
 # Context
 
-A [waza](https://github.com/microsoft/waza) project of agent skills for GitHub Copilot: skills in `skills/<name>/SKILL.md`, evals in `evals/<name>/`. Both evals run the agent on fixed commits of guardian/cdk-playground: `validate-github-actions` asks it to validate ci.yaml, and `writing-pull-request-descriptions` asks it to describe PR #1138 in PR.md. Tools are pinned through mise `.tool-versions`.
+A [waza](https://github.com/microsoft/waza) project of agent skills for GitHub Copilot: skills in `skills/<name>/SKILL.md`, evals in `evals/<name>/`. Both evals run the agent on fixed commits of guardian/cdk-playground: `validate-github-actions` asks it to validate ci.yaml, and `writing-pull-request-descriptions` asks it to describe PRs #1138 and #1089 (one task each) in PR.md. Tools are pinned through mise `.tool-versions`.
 
 # Bash commands
 - `make eval`: run the eval with and without the skill (`waza run --baseline`), results in `evals/<name>/results/`. Defaults to `validate-github-actions`; pick another with `EVAL=evals/<name>`
